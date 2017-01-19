@@ -19,3 +19,14 @@ CREATE TABLE WebResourceUsers (
 );
 
 ALTER TABLE Policies ADD body TEXT;
+
+CREATE TABLE WebResourcePolicies (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `policiesId` INT(11) NOT NULL,
+  `webResourceId` INT(11) NOT NULL,
+  `created` DATETIME,
+  `lastModified` DATETIME,
+  PRIMARY KEY(`id`),
+  FOREIGN KEY (`policiesId`) REFERENCES Policies(`id`),
+  FOREIGN KEY (`webResourceId`) REFERENCES WebResources(`id`)
+)

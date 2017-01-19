@@ -71,12 +71,13 @@ class BiomioResourcesMeta(object):
 
 
 class BiomioPolicies(object):
-    def __init__(self, title=None, body=None, providerId=None, id=None, meta=None):
+    def __init__(self, title=None, body=None, providerId=None, id=None, meta=None, resources=None):
         self.id = id
         self.providerId = providerId
         self.title = title
         self.body = body
         self.meta = meta
+        self.resources = resources
 
 
 class BiomioPoliciesMeta(object):

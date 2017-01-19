@@ -99,6 +99,14 @@ class Policies(database.Entity):
     dateCreated = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
     dateModified = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
 
+
+class WebResourcePolicies(database.Entity):
+    _table_ = 'WebResourcePolicies'
+    id = pny.PrimaryKey(int, auto=True)
+    policiesId = pny.Required(int)
+    webResourceId = pny.Required(int)
+
+
 # pny.sql_debug(True)
 database.generate_mapping(create_tables=True)
 
@@ -615,6 +623,25 @@ class BiomioResourceORM:
         return data_list
 
     @pny.db_session
+    def all_by_policies_id(self, policies_id=None):
+        # print web_resource_list
+        web_resource_list = BiomioResources.select_by_sql('SELECT wr.id, wr.title, wr.domain '
+                                                          'FROM WebResources wr '
+                                                          'LEFT JOIN WebResourcePolicies wrp ON wrp.webResourceId = wr.id '
+                                                          'WHERE wrp.policiesId = %s' % policies_id)
+
+        data_list = list()
+        for web_resource in web_resource_list:
+            data = BiomioResource(**self.to_dict(web_resource))
+            data.meta = BiomioResourceMetaORM.instance().get(data.id)
+            data.users = UserORM.instance().all_by_resource_id(resource_id=web_resource.id)
+
+            data_list.append(
+                data
+            )
+        return data_list
+
+    @pny.db_session
     def all(self, provider_id=None):
         if not provider_id:
             web_resource_list = BiomioResources.select_by_sql('SELECT wr.id, wr.title, wr.domain '
@@ -769,7 +796,7 @@ class BiomioPoliciesORM:
             if policies:
                 data = BiomioPolicies(**self.to_dict(policies))
                 data.meta = BiomioPoliciesMetaORM.instance().get(data.id)
-                # data.users = UserORM.instance().all_by_resource_id(resource_id=id)
+                data.resources = BiomioResourceORM.instance().all_by_policies_id(policies_id=id)
             else:
                 raise pny.ObjectNotFound(Policies)
         except pny.ObjectNotFound:
@@ -790,7 +817,7 @@ class BiomioPoliciesORM:
         for policies in policies_list:
             data = BiomioPolicies(**self.to_dict(policies))
             data.meta = BiomioPoliciesMetaORM.instance().get(data.id)
-            # data.users = UserORM.instance().all_by_resource_id(resource_id=web_resource.id)
+            data.resources = BiomioResourceORM.instance().all_by_policies_id(policies_id=policies.id)
 
             data_list.append(
                 data
@@ -807,6 +834,12 @@ class BiomioPoliciesORM:
 
                 pny.commit()
 
+                print obj.resources
+                if obj.resources:
+                    for resource in obj.resources:
+                        WebResourcePolicies(policiesId=policies.id, webResourceId=resource.id)
+                        pny.commit()
+
                 data = self.get(policies.id)
             else:
                 try:
@@ -822,6 +855,29 @@ class BiomioPoliciesORM:
 
                     pny.commit()
 
+                    if obj.resources:
+                        resource_list = list()
+                        for resource in obj.resources:
+                            web_resource_policies_data = WebResourcePolicies.get(policiesId=policies.id, webResourceId=resource.id)
+                            if not web_resource_policies_data:
+                                BiomioResourceUsers(policiesId=obj.id, webResourceId=resource.id)
+                                pny.commit()
+
+                            resource_list.append(resource.id)
+                        if resource_list:
+                            resources = pny.select(wrp for wrp in WebResourcePolicies
+                                                   if wrp.policiesId == policies.id
+                                                   and wrp.webResourceId not in resource_list)
+                            for resource in resources:
+                                resource.delete()
+                                pny.commit()
+                    else:
+                        resources = pny.select(wrp for wrp in WebResourcePolicies
+                                               if wrp.policiesId == policies.id)
+                        for resource in resources:
+                            resource.delete()
+                            pny.commit()
+
                     data = self.get(obj.id)
                 else:
                     data = False
@@ -834,6 +890,12 @@ class BiomioPoliciesORM:
         try:
             policies = Policies.get(id=obj.id)
             if policies:
+
+                resources = pny.select(wrp for wrp in WebResourcePolicies
+                                       if wrp.policiesId == policies.id)
+                for resource in resources:
+                    resource.delete()
+                    pny.commit()
 
                 policies.delete()
                 pny.commit()

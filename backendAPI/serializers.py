@@ -265,6 +265,12 @@ class BiomioPoliciesMetaSerializer(serializers.Serializer):
         return instance
 
 
+class BiomioResourcePoliciesSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField(max_length=255, required=True)
+    domain = serializers.CharField(max_length=255, required=True)
+
+
 class BiomioPoliciesSerializer(serializers.Serializer):
     schemas = serializers.SerializerMethodField()
 
@@ -274,16 +280,36 @@ class BiomioPoliciesSerializer(serializers.Serializer):
     body = serializers.CharField(max_length=255, required=False)
 
     meta = BiomioPoliciesMetaSerializer(read_only=True)
+    resources = BiomioResourcePoliciesSerializer(many=True)
 
     def get_schemas(self, obj):
         return [SCIM_ADDR % obj.__class__.__name__]
 
     def create(self, validated_data):
+        resources_data = validated_data.pop('resources', None)
+
         policies = BiomioPolicies(**validated_data)
+        if resources_data:
+            policies.resources = list()
+            for resource_data in resources_data:
+                print resource_data
+                if resource_data.get('id'):
+                    resource = BiomioResourceORM.instance().get(resource_data.get('id'))
+                    policies.resources.append(resource)
+
         return BiomioPoliciesORM.instance().save(policies)
 
     def update(self, instance, validated_data):
+        resources_data = validated_data.pop('resources', None)
+
         for key, value in validated_data.items():
             setattr(instance, key, value)
+
+        if resources_data:
+            instance.resources = list()
+            for resource_data in resources_data:
+                if resource_data.get('id'):
+                    resource = BiomioResourceORM.instance().get(resource_data.get('id'))
+                    instance.resources.append(resource)
 
         return BiomioPoliciesORM.instance().save(instance)
