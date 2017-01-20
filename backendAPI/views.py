@@ -7,9 +7,9 @@ import pony.orm as pny
 
 from biomio_backend_SCIM.settings import SCIM_ADDR
 
-from biomio_orm import UserORM, Providers, ProviderUsers, BiomioResourceORM, BiomioPoliciesORM
+from biomio_orm import UserORM, Providers, ProviderUsers, BiomioResourceORM, BiomioPoliciesORM, Profiles, DevicesORM
 from serializers import UserSerializer, BiomioResourceSerializer, BiomioServiceProviderSerializer, \
-    BiomioPoliciesSerializer
+    BiomioPoliciesSerializer, DevicesSerializer
 from models import User, BiomioServiceProvider, BiomioPolicies
 
 from ServiceProviderConfigurationEndpoints.schemas import Schema, SchemaSerializer, scim_schemas
@@ -338,6 +338,58 @@ class ApiBiomioPoliciesDetail(APIView):
         policies = BiomioPoliciesORM.instance().get(pk)
         if policies:
             result = BiomioPoliciesORM.instance().delete(policies)
+            if result:
+                return Response({'success': True}, status=status.HTTP_200_OK)
+            else:
+                return Response({'errors': 'Not Found!'}, status=status.HTTP_409_CONFLICT)
+        else:
+            return Response({'errors': 'Not Found!'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class ApiDevicesList(APIView):
+    @pny.db_session
+    def get(self, request, pk, format=None):
+        try:
+            Profiles[pk]
+        except pny.ObjectNotFound:
+            return Response({'errors': 'Wrong User ID'}, status=status.HTTP_404_NOT_FOUND)
+
+        devices = DevicesORM.instance().all(pk)
+        serializer = DevicesSerializer(devices, context={'request': request}, many=True)
+        return Response(serializer.data)
+
+
+class ApiDevicesDetail(APIView):
+    @pny.db_session
+    def get(self, request, pk, format=None):
+        device = DevicesORM.instance().get(pk)
+        if device:
+            serializer = DevicesSerializer(device, context={'request': request})
+            return Response(serializer.data)
+        else:
+            return Response({'errors': 'Not Found!'}, status=status.HTTP_404_NOT_FOUND)
+
+    @pny.db_session
+    def put(self, request, pk, format=None):
+        device = DevicesORM.instance().get(pk)
+        if device:
+            data = request.data
+
+            serializer = DevicesSerializer(device, data=data, partial=True)
+            if serializer.is_valid():
+                device = serializer.save()
+                return Response(
+                    DevicesSerializer(device, context={'request': request}).data,
+                    status=status.HTTP_201_CREATED
+                )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({'errors': 'Not Found!'}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, pk, format=None):
+        device = DevicesORM.instance().get(pk)
+        if device:
+            result = DevicesORM.instance().delete(device)
             if result:
                 return Response({'success': True}, status=status.HTTP_200_OK)
             else:

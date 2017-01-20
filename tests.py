@@ -42,7 +42,6 @@ user_serializer = UserSerializer(data=data)
 user_serializer.is_valid()
 
 user = user_serializer.save()
-user
 
 from backendAPI.biomio_orm import UserORM
 user_instance = UserORM.instance()

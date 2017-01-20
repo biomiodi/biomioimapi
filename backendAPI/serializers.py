@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from models import UserMeta, UserName, User, Email, PhoneNumber, BiomioResourcesMeta, BiomioResource, \
-    BiomioPolicies, BiomioPoliciesMeta
-from biomio_orm import UserORM, BiomioResourceORM, BiomioPoliciesORM
+    BiomioPolicies, BiomioPoliciesMeta, DeviceMeta, Application
+from biomio_orm import UserORM, BiomioResourceORM, BiomioPoliciesORM, Device, DevicesMetaORM, DevicesORM, \
+    ApplicationsORM
 from biomio_backend_SCIM.settings import SCIM_ADDR
 
 
@@ -313,3 +314,53 @@ class BiomioPoliciesSerializer(serializers.Serializer):
                     instance.resources.append(resource)
 
         return BiomioPoliciesORM.instance().save(instance)
+
+
+class ApplicationSerializer(serializers.Serializer):
+    app_id = serializers.CharField(max_length=255, required=True)
+    app_type = serializers.CharField(max_length=255, required=True)
+
+    def create(self, validated_data):
+        return ApplicationsORM(**validated_data)
+
+    def update(self, instance, validated_data):
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+
+        return instance
+
+
+class DevicesMetaSerializer(serializers.Serializer):
+    created = serializers.DateTimeField(required=False, read_only=True)
+    lastModified = serializers.DateTimeField(required=False, read_only=True)
+
+    def create(self, validated_data):
+        return DeviceMeta(**validated_data)
+
+    def update(self, instance, validated_data):
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+
+        return instance
+
+
+class DevicesSerializer(serializers.Serializer):
+    schemas = serializers.SerializerMethodField()
+
+    id = serializers.IntegerField(read_only=True)
+    user = serializers.IntegerField(read_only=True)
+    title = serializers.CharField(max_length=255, required=True)
+    body = serializers.CharField(max_length=255, required=False)
+    meta = DevicesMetaSerializer(read_only=True)
+    application = ApplicationSerializer(read_only=True)
+
+    def get_schemas(self, obj):
+        return [SCIM_ADDR % obj.__class__.__name__]
+
+    def update(self, instance, validated_data):
+        body = validated_data.pop('body', None)
+
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+
+        return DevicesORM.instance().save(instance)

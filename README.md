@@ -1,3 +1,10 @@
+CREATE DATABASE biomio_db;
+CREATE USER 'biomio_admin'@'localhost' IDENTIFIED BY 'gate';
+GRANT ALL PRIVILEGES ON biomio_db . * TO 'biomio_admin'@'localhost';
+
+CREATE USER 'biomio_admin'@'%' IDENTIFIED BY 'gate';
+GRANT ALL PRIVILEGES ON * . * TO 'biomio_admin'@'%';
+
 update Profiles
 left join Emails on Emails.profileId=Profiles.id and Emails.`primary`=TRUE
 set Profiles.name = Emails.email;

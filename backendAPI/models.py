@@ -89,6 +89,36 @@ class BiomioPoliciesMeta(object):
         self.location = location
 
 
+class Device(object):
+    def __init__(self, title=None, body=None, profileId=None, id=None, meta=None, status=None, device_token=None):
+        self.id = id
+        self.user = profileId
+        self.title = title
+        self.body = body
+        self.meta = meta
+        self.device_token = device_token
+
+
+class DeviceMeta(object):
+    def __init__(self, id=None, pk=None, created=None, lastModified=None):
+        self.id = id
+        self.pk = pk
+        self.created = created or datetime.now()
+        self.lastModified = lastModified or datetime.now()
+
+
+class Application(object):
+    def __init__(self, app_type=None, app_id=None):
+        self.app_id = app_id
+        self.app_type = app_type
+
+
+class ApplicationsUser(object):
+    def __init__(self, user=None, app_id=None):
+        self.app_id = app_id
+        self.user = user
+
+
 class BiomioServiceProvider(object):
     def __init__(self, resources=None):
         self.resources = resources

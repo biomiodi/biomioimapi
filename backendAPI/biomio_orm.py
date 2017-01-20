@@ -2,7 +2,8 @@ import pony.orm as pny
 import datetime
 
 from backendAPI.models import BiomioResourcesMeta
-from models import UserMeta, UserName, User, Email, PhoneNumber, BiomioResource, BiomioPolicies, BiomioPoliciesMeta
+from models import UserMeta, UserName, User, Email, PhoneNumber, BiomioResource, BiomioPolicies, BiomioPoliciesMeta, \
+    Device, DeviceMeta, Application
 from biomio_backend_SCIM.settings import DATABASES
 
 
@@ -105,6 +106,28 @@ class WebResourcePolicies(database.Entity):
     id = pny.PrimaryKey(int, auto=True)
     policiesId = pny.Required(int)
     webResourceId = pny.Required(int)
+
+
+class Devices(database.Entity):
+    _table_ = 'UserServices'
+    id = pny.PrimaryKey(int, auto=True)
+    profileId = pny.Required(int)
+    title = pny.Required(str, 255, lazy=True)
+    device_token = pny.Optional(str, 255, lazy=True)
+    date_created = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
+    date_modified = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
+
+
+class Applications(database.Entity):
+    _table_ = 'Applications'
+    app_id = pny.PrimaryKey(str, 255)
+    app_type = pny.Required(str, 255, lazy=True)
+
+
+class ApplicationsUser(database.Entity):
+    _table_ = 'application_userinformation'
+    application = pny.PrimaryKey(str, 255)
+    userinformation = pny.Required(int)
 
 
 # pny.sql_debug(True)
@@ -904,3 +927,154 @@ class BiomioPoliciesORM:
         except pny.ObjectNotFound:
             return False
         return True
+
+
+class DevicesMetaORM:
+    _instance = None
+
+    @classmethod
+    def instance(cls):
+        if cls._instance is None:
+            cls._instance = DevicesMetaORM()
+        return cls._instance
+
+    def to_dict(self, obj):
+        data = dict()
+        if isinstance(obj, Devices):
+            data.update({'pk': obj.id})
+            data.update({'created': obj.date_created})
+            data.update({'lastModified': obj.date_modified})
+        return data
+
+    @pny.db_session
+    def get(self, id):
+        try:
+            devices = Devices.get(id=id)
+            if devices:
+                data = DeviceMeta(**self.to_dict(devices))
+            else:
+                raise pny.ObjectNotFound(Devices)
+        except pny.ObjectNotFound:
+            data = None
+        return data
+
+
+class DevicesORM:
+    _instance = None
+
+    @classmethod
+    def instance(cls):
+        if cls._instance is None:
+            cls._instance = DevicesORM()
+        return cls._instance
+
+    def to_dict(self, obj):
+        data = dict()
+        if isinstance(obj, Devices):
+            data.update({'id': obj.id})
+            data.update({'profileId': obj.profileId})
+            data.update({'title': obj.title})
+            data.update({'device_token': obj.device_token})
+        return data
+
+    @pny.db_session
+    def get(self, id):
+        try:
+            device = Devices.get(id=id)
+            if device:
+                data = Device(**self.to_dict(device))
+                data.meta = DevicesMetaORM.instance().get(data.id)
+                if data.device_token:
+                    data.application = ApplicationsORM.instance().get(data.device_token)
+                else:
+                    data.application = None
+            else:
+                raise pny.ObjectNotFound(Devices)
+        except pny.ObjectNotFound:
+            data = None
+        return data
+
+    @pny.db_session
+    def all(self, profileId=None):
+        devices = pny.select(e for e in Devices if e.profileId == profileId)
+
+        data_list = list()
+        for device in devices:
+            data = DevicesORM.instance().get(device.id)
+            data_list.append(
+                data
+            )
+        return data_list
+
+    @pny.db_session
+    def save(self, obj):
+        if isinstance(obj, Device):
+            try:
+                device = Devices[obj.id]
+            except pny.ObjectNotFound:
+                return False
+
+            if device:
+                device.title = obj.title
+                device.date_modified = datetime.datetime.now()
+
+                pny.commit()
+
+                data = self.get(obj.id)
+            else:
+                data = False
+        else:
+            data = False
+        return data
+
+    @pny.db_session
+    def delete(self, obj):
+        try:
+            #ToDo check necessity of deleting ApplicationsUser and Applications if Device is deleted
+            device = Devices[obj.id]
+            if device:
+
+                if device.device_token:
+                    applications_user = ApplicationsUser[device.device_token]
+                    applications_user.delete()
+                if device.device_token:
+                    application = Applications[device.device_token]
+                    application.delete()
+
+                device.delete()
+
+                pny.commit()
+            else:
+                raise pny.ObjectNotFound(Devices)
+        except pny.ObjectNotFound:
+            return False
+        return True
+
+
+class ApplicationsORM:
+    _instance = None
+
+    @classmethod
+    def instance(cls):
+        if cls._instance is None:
+            cls._instance = ApplicationsORM()
+        return cls._instance
+
+    def to_dict(self, obj):
+        data = dict()
+        if isinstance(obj, Applications):
+            data.update({'app_id': obj.app_id})
+            data.update({'app_type': obj.app_type})
+        return data
+
+    @pny.db_session
+    def get(self, app_id):
+        try:
+            app = Applications.get(app_id=app_id)
+            if app:
+                data = Application(**self.to_dict(app))
+            else:
+                raise pny.ObjectNotFound(Applications)
+        except pny.ObjectNotFound:
+            data = None
+        return data
