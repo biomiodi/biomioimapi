@@ -736,7 +736,7 @@
           "code": 404,
 
           "content": {
-            "errors": "Wrong Shema ID"
+            "errors": "Wrong Schema ID"
           }
         }
       ]

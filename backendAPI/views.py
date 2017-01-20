@@ -108,7 +108,7 @@ def api_schemas_detail(request, pk, format=None):
             ).data,
             status=status.HTTP_200_OK
         )
-    return Response({'errors': 'Wrong Shema ID'}, status=status.HTTP_404_NOT_FOUND)
+    return Response({'errors': 'Wrong Schema ID'}, status=status.HTTP_404_NOT_FOUND)
 
 
 class ApiUsersList(APIView):
