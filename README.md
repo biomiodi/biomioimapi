@@ -13,6 +13,7 @@ ALTER TABLE UserInfo ADD middleName VARCHAR(30);
 ALTER TABLE UserInfo ADD honorificPrefix VARCHAR(10);
 ALTER TABLE UserInfo ADD honorificSuffix VARCHAR(10);
 ALTER TABLE UserInfo ADD formatted VARCHAR(128);
+ALTER TABLE Profiles ADD externalId VARCHAR(128);
 
 CREATE TABLE WebResourceUsers (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
