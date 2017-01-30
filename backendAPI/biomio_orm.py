@@ -1163,7 +1163,7 @@ class EnrollmentORM:
                     status = verification_code.status
                 else:
                     code = None
-                    status= False
+                    status = False
 
                 pool = redis.ConnectionPool(host='localhost', port=6379, db=0)
                 r = redis.Redis(connection_pool=pool)

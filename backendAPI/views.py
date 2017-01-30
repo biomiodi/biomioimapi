@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status
 import pony.orm as pny
 
-from biomio_backend_SCIM.settings import SCIM_ADDR
+from biomio_backend_SCIM.settings import SCIM_ADDR, AI_REST_URL
 
 from biomio_orm import UserORM, Providers, ProviderUsers, BiomioResourceORM, BiomioPoliciesORM, Profiles, DevicesORM,\
     EnrollmentORM
@@ -429,8 +429,8 @@ class ApiBiomioEnrollmentDetail(APIView):
         if not data.get('verification'):
             device = DevicesORM.instance().get(device_id)
             if device.device_token:
-                print 'http://gate.biom.io/training?device_id=%s&code=AAAAA' % device.device_token
-                # requests.post('http://gate.biom.io/training?device_id=%s&code=AAAAA' % device.device_token)
+                print AI_REST_URL % device.device_token
+                # requests.post(AI_REST_URL % device.device_token)
             else:
                 return Response({'errors': 'Device not registered!'}, status=status.HTTP_404_NOT_FOUND)
 

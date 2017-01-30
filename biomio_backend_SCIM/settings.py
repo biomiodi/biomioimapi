@@ -126,3 +126,5 @@ STATIC_URL = '/static/'
 
 
 SCIM_ADDR = 'urn:ietf:params:scim:schemas:core:2.0:%s'
+
+AI_REST_URL = 'http://gate.biom.io/training?device_id=%s&code=AAAAA'
