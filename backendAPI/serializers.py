@@ -347,7 +347,7 @@ class DevicesSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     user = serializers.IntegerField()
     title = serializers.CharField(max_length=255, required=True)
-    body = serializers.CharField(max_length=255, required=False)
+    body = serializers.CharField(max_length=255, required=False, read_only=True)
     meta = DevicesMetaSerializer(read_only=True)
     application = ApplicationSerializer(read_only=True)
 
@@ -359,8 +359,6 @@ class DevicesSerializer(serializers.Serializer):
         return DevicesORM.instance().save(devices)
 
     def update(self, instance, validated_data):
-        body = validated_data.pop('body', None)
-
         for key, value in validated_data.items():
             setattr(instance, key, value)
 
