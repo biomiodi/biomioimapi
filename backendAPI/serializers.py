@@ -334,9 +334,6 @@ class DevicesMetaSerializer(serializers.Serializer):
     created = serializers.DateTimeField(required=False, read_only=True)
     lastModified = serializers.DateTimeField(required=False, read_only=True)
 
-    def create(self, validated_data):
-        return DeviceMeta(**validated_data)
-
     def update(self, instance, validated_data):
         for key, value in validated_data.items():
             setattr(instance, key, value)
@@ -348,7 +345,7 @@ class DevicesSerializer(serializers.Serializer):
     schemas = serializers.SerializerMethodField()
 
     id = serializers.IntegerField(read_only=True)
-    user = serializers.IntegerField(read_only=True)
+    user = serializers.IntegerField()
     title = serializers.CharField(max_length=255, required=True)
     body = serializers.CharField(max_length=255, required=False)
     meta = DevicesMetaSerializer(read_only=True)
@@ -357,6 +354,10 @@ class DevicesSerializer(serializers.Serializer):
     def get_schemas(self, obj):
         return [SCIM_ADDR % obj.__class__.__name__]
 
+    def create(self, validated_data):
+        devices = Device(**validated_data)
+        return DevicesORM.instance().save(devices)
+
     def update(self, instance, validated_data):
         body = validated_data.pop('body', None)
 
@@ -364,3 +365,24 @@ class DevicesSerializer(serializers.Serializer):
             setattr(instance, key, value)
 
         return DevicesORM.instance().save(instance)
+
+
+class BiomioEnrollmentVerificationSerializer(serializers.Serializer):
+    # title = serializers.CharField(max_length=255, required=True)
+    code = serializers.CharField(max_length=10, required=False, allow_null=True)
+    status = serializers.CharField(max_length=10, required=False)
+
+
+class BiomioEnrollmentTraningSerializer(serializers.Serializer):
+    status = serializers.CharField(max_length=32, required=True)
+    progress = serializers.CharField(max_length=32, required=True)
+
+
+class BiomioEnrollmentBiometricsSerializer(serializers.Serializer):
+    type = serializers.CharField(max_length=255, required=True)
+    training = BiomioEnrollmentTraningSerializer()
+
+
+class BiomioEnrollmentSerializer(serializers.Serializer):
+    verification = BiomioEnrollmentVerificationSerializer()
+    biometrics = BiomioEnrollmentBiometricsSerializer(many=True)

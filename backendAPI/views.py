@@ -1,3 +1,4 @@
+import requests
 from rest_framework.decorators import api_view
 
 from rest_framework.views import APIView
@@ -7,9 +8,10 @@ import pony.orm as pny
 
 from biomio_backend_SCIM.settings import SCIM_ADDR
 
-from biomio_orm import UserORM, Providers, ProviderUsers, BiomioResourceORM, BiomioPoliciesORM, Profiles, DevicesORM
+from biomio_orm import UserORM, Providers, ProviderUsers, BiomioResourceORM, BiomioPoliciesORM, Profiles, DevicesORM,\
+    EnrollmentORM
 from serializers import UserSerializer, BiomioResourceSerializer, BiomioServiceProviderSerializer, \
-    BiomioPoliciesSerializer, DevicesSerializer
+    BiomioPoliciesSerializer, DevicesSerializer, BiomioEnrollmentSerializer
 from models import User, BiomioServiceProvider, BiomioPolicies
 
 from ServiceProviderConfigurationEndpoints.schemas import Schema, SchemaSerializer, scim_schemas
@@ -358,6 +360,24 @@ class ApiDevicesList(APIView):
         serializer = DevicesSerializer(devices, context={'request': request}, many=True)
         return Response(serializer.data)
 
+    @pny.db_session
+    def post(self, request, pk, format=None):
+        try:
+            Profiles[pk]
+        except pny.ObjectNotFound:
+            return Response({'errors': 'Wrong User ID'}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data
+        data['user'] = pk
+
+        serializer = DevicesSerializer(data=data)
+        if serializer.is_valid():
+            device = serializer.save()
+
+            return Response(DevicesSerializer(device, context={'request': request}).data,
+                            status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class ApiDevicesDetail(APIView):
     @pny.db_session
@@ -394,5 +414,36 @@ class ApiDevicesDetail(APIView):
                 return Response({'success': True}, status=status.HTTP_200_OK)
             else:
                 return Response({'errors': 'Not Found!'}, status=status.HTTP_409_CONFLICT)
+        else:
+            return Response({'errors': 'Not Found!'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class ApiBiomioEnrollmentDetail(APIView):
+    @pny.db_session
+    def get(self, request, device_id, format=None):
+        enrollment = EnrollmentORM.instance().get(device_id)
+        if enrollment:
+            serializer = BiomioEnrollmentSerializer(enrollment, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response({'errors': 'Not Found!'}, status=status.HTTP_404_NOT_FOUND)
+
+    @pny.db_session
+    def post(self, request, device_id, format=None):
+        data = request.data
+        application = 1 if data.get('verification') else 0
+
+        if not data.get('verification'):
+            device = DevicesORM.instance().get(device_id)
+            if device.device_token:
+                print 'http://gate.biom.io/training?device_id=%s&code=AAAAA' % device.device_token
+                # requests.post('http://gate.biom.io/training?device_id=%s&code=AAAAA' % device.device_token)
+            else:
+                return Response({'errors': 'Device not registered!'}, status=status.HTTP_404_NOT_FOUND)
+
+        enrollment = EnrollmentORM.instance().gen_verification_code(dev_id=device_id, application=application)
+        if enrollment:
+            serializer = BiomioEnrollmentSerializer(enrollment, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             return Response({'errors': 'Not Found!'}, status=status.HTTP_404_NOT_FOUND)

@@ -1,10 +1,30 @@
 import pony.orm as pny
 import datetime
+import redis
 
 from backendAPI.models import BiomioResourcesMeta
 from models import UserMeta, UserName, User, Email, PhoneNumber, BiomioResource, BiomioPolicies, BiomioPoliciesMeta, \
-    Device, DeviceMeta, Application
+    Device, DeviceMeta, Application, \
+    BiomioEnrollment, BiomioEnrollmentBiometrics, BiomioEnrollmentTraining, BiomioEnrollmentVerification
 from biomio_backend_SCIM.settings import DATABASES
+import random
+
+REDIS_BIOMIO_GENERAL_CHANNEL = 'biomio_general:%s'
+REDIS_TRAINING_STATUS_KEY_PARAMS = REDIS_BIOMIO_GENERAL_CHANNEL % 'params:training:status:%s'
+
+# import warnings
+#
+#
+# warnings.filterwarnings("ignore", "Field 'phones' doesn't have a default value")
+# warnings.filterwarnings("ignore", "Field 'password' doesn't have a default value")
+# warnings.filterwarnings("ignore", "Field 'temp_pass' doesn't have a default value")
+# warnings.filterwarnings("ignore", "Field 'last_ip' doesn't have a default value")
+# warnings.filterwarnings("ignore", "Field 'voice' doesn't have a default value")
+# warnings.filterwarnings("ignore", "Field 'motto' doesn't have a default value")
+# warnings.filterwarnings("ignore", "Field 'bday' doesn't have a default value")
+# warnings.filterwarnings("ignore", "Field 'occupation' doesn't have a default value")
+# warnings.filterwarnings("ignore", "Field 'api_id' doesn't have a default value")
+# warnings.filterwarnings("ignore", "Field 'acc_type' doesn't have a default value")
 
 
 db_parameters = DATABASES.get('default')
@@ -114,6 +134,7 @@ class Devices(database.Entity):
     profileId = pny.Required(int)
     title = pny.Required(str, 255, lazy=True)
     device_token = pny.Optional(str, 255, lazy=True)
+    status = pny.Optional(bool, sql_default=False)
     date_created = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
     date_modified = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
 
@@ -128,6 +149,16 @@ class ApplicationsUser(database.Entity):
     _table_ = 'application_userinformation'
     application = pny.PrimaryKey(str, 255)
     userinformation = pny.Required(int)
+
+
+class VerificationCodes(database.Entity):
+    _table_ = 'VerificationCodes'
+    id = pny.PrimaryKey(int, auto=True)
+    code = pny.Required(str, 10, lazy=True)
+    device_id = pny.Required(int)
+    status = pny.Required(int)
+    application = pny.Required(int)
+    profileId = pny.Required(int)
 
 
 # pny.sql_debug(True)
@@ -972,7 +1003,7 @@ class DevicesORM:
         data = dict()
         if isinstance(obj, Devices):
             data.update({'id': obj.id})
-            data.update({'profileId': obj.profileId})
+            data.update({'user': obj.profileId})
             data.update({'title': obj.title})
             data.update({'device_token': obj.device_token})
         return data
@@ -1009,20 +1040,26 @@ class DevicesORM:
     @pny.db_session
     def save(self, obj):
         if isinstance(obj, Device):
-            try:
-                device = Devices[obj.id]
-            except pny.ObjectNotFound:
-                return False
-
-            if device:
-                device.title = obj.title
-                device.date_modified = datetime.datetime.now()
-
+            if not obj.id:
+                device = Devices(title=obj.title, profileId=obj.user)
                 pny.commit()
 
-                data = self.get(obj.id)
+                data = self.get(device.id)
             else:
-                data = False
+                try:
+                    device = Devices[obj.id]
+                except pny.ObjectNotFound:
+                    return False
+
+                if device:
+                    device.title = obj.title
+                    device.date_modified = datetime.datetime.now()
+
+                    pny.commit()
+
+                    data = self.get(obj.id)
+                else:
+                    data = False
         else:
             data = False
         return data
@@ -1075,6 +1112,139 @@ class ApplicationsORM:
                 data = Application(**self.to_dict(app))
             else:
                 raise pny.ObjectNotFound(Applications)
+        except pny.ObjectNotFound:
+            data = None
+        return data
+
+
+class EnrollmentORM:
+    _instance = None
+
+    STATUS_ARRAY = {
+        0: 'non-verified',
+        1: 'non-verified',
+        2: 'non-verified',
+        3: 'verified',
+        4: 'in-process',
+        5: 'canceled',
+        6: 'failed',
+        7: 'failed',
+        8: 'retry',
+
+    }
+
+    @classmethod
+    def instance(cls):
+        if cls._instance is None:
+            cls._instance = EnrollmentORM()
+        return cls._instance
+
+    @pny.db_session
+    def get(self, dev_id):
+        try:
+            device = Devices.get(id=dev_id)
+            if device:
+                verification_code = VerificationCodes.get(device_id=dev_id, application=1)
+                if verification_code:
+                    code = verification_code.code
+                    status = verification_code.status
+                else:
+                    code = None
+                    status= False
+
+                enrollment_verification = BiomioEnrollmentVerification(code=code, status=self.STATUS_ARRAY.get(status))
+
+                biometrics = list()
+                # device_training = BiomioEnrollmentTraining(status='in-progress', progress='80')
+
+                verification_code = VerificationCodes.get(device_id=dev_id, application=0)
+                if verification_code:
+                    code = verification_code.code
+                    status = verification_code.status
+                else:
+                    code = None
+                    status= False
+
+                pool = redis.ConnectionPool(host='localhost', port=6379, db=0)
+                r = redis.Redis(connection_pool=pool)
+                # print r.get(REDIS_TRAINING_STATUS_KEY_PARAMS % device.device_token)
+                if r.get(REDIS_TRAINING_STATUS_KEY_PARAMS % device.device_token):
+                    import ast
+
+                    data = ast.literal_eval(r.get(REDIS_TRAINING_STATUS_KEY_PARAMS % device.device_token))
+                    device_training = BiomioEnrollmentTraining(status=data.get('status'), progress=data.get('progress'))
+                    device_biometrics = BiomioEnrollmentBiometrics(training=device_training, type='face')
+                    biometrics.append(device_biometrics)
+                else:
+                    device_training = BiomioEnrollmentTraining(status=self.STATUS_ARRAY.get(status), progress=False)
+                    device_biometrics = BiomioEnrollmentBiometrics(training=device_training, type='face')
+                    biometrics.append(device_biometrics)
+
+                enrollment = BiomioEnrollment(verification=enrollment_verification, biometrics=biometrics)
+                data = enrollment
+            else:
+                raise pny.ObjectNotFound(Devices)
+        except pny.ObjectNotFound:
+            data = None
+        return data
+
+    @pny.db_session
+    def gen_verification_code(self, dev_id, application):
+        try:
+            device = Devices.get(id=dev_id)
+            if device:
+                verification_code = VerificationCodes.select_by_sql('SELECT v.id, v.code, v.status '
+                                                                    'FROM VerificationCodes v '
+                                                                    'WHERE v.device_id = "%s" '
+                                                                    'AND v.application = %s '
+                                                                    'LIMIT 1' % (dev_id, application))
+                if verification_code:
+                    verification_code = verification_code[0]
+                    while True:
+                        code = random.randint(10000000, 99999999)
+                        if VerificationCodes.select_by_sql('SELECT v.id, v.code, v.status '
+                                                           'FROM VerificationCodes v '
+                                                           'WHERE v.code = "%s"' % code):
+                            continue
+                        else:
+                            verification_code.code = str(code)
+                            verification_code.status = 0
+                            verification_code.application = application
+                            pny.commit()
+                            break
+                else:
+                    while True:
+                        code = random.randint(10000000, 99999999)
+                        if VerificationCodes.select_by_sql('SELECT v.id, v.code, v.status '
+                                                           'FROM VerificationCodes v '
+                                                           'WHERE v.code = "%s"' % code):
+                            continue
+                        else:
+                            verification_code = VerificationCodes(
+                                code=str(code),
+                                status=0,
+                                device_id=dev_id,
+                                application=application,
+                                profileId=device.profileId
+                            )
+                            pny.commit()
+                            break
+
+                enrollment_verification = BiomioEnrollmentVerification(
+                    code=verification_code.code,
+                    status=self.STATUS_ARRAY.get(verification_code.status)
+                )
+
+                biometrics = list()
+                device_training = BiomioEnrollmentTraining(status=self.STATUS_ARRAY.get(verification_code.status), progress=None)
+                device_biometrics = BiomioEnrollmentBiometrics(training=device_training, type='face')
+                biometrics.append(device_biometrics)
+
+                enrollment = BiomioEnrollment(verification=enrollment_verification, biometrics=biometrics)
+
+                data = enrollment
+            else:
+                raise pny.ObjectNotFound(Devices)
         except pny.ObjectNotFound:
             data = None
         return data

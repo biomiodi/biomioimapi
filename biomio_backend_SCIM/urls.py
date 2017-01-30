@@ -58,5 +58,7 @@ urlpatterns = [
     url(r'^Devices/(?P<pk>[0-9]+)$', views.ApiDevicesDetail.as_view(),
         name='scim-user-device-detail'),
 
+    url(r'^Devices/(?P<device_id>[0-9]+)/BiomioEnrollment$', views.ApiBiomioEnrollmentDetail.as_view(),
+        name='scim-biomio-enrollment'),
     # (?P<user_id>[0-9]+)
 ]

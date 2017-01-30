@@ -90,9 +90,9 @@ class BiomioPoliciesMeta(object):
 
 
 class Device(object):
-    def __init__(self, title=None, body=None, profileId=None, id=None, meta=None, status=None, device_token=None):
+    def __init__(self, title=None, body=None, user=None, id=None, meta=None, status=None, device_token=None):
         self.id = id
-        self.user = profileId
+        self.user = user
         self.title = title
         self.body = body
         self.meta = meta
@@ -122,3 +122,27 @@ class ApplicationsUser(object):
 class BiomioServiceProvider(object):
     def __init__(self, resources=None):
         self.resources = resources
+
+
+class BiomioEnrollmentVerification(object):
+    def __init__(self, code=None, status=None):
+        self.code = code
+        self.status = status
+
+
+class BiomioEnrollmentTraining(object):
+    def __init__(self, status=None, progress=None):
+        self.status = status
+        self.progress = progress
+
+
+class BiomioEnrollmentBiometrics(object):
+    def __init__(self, type=None, training=None):
+        self.type = type
+        self.training = training
+
+
+class BiomioEnrollment(object):
+    def __init__(self, biometrics=None, verification=None):
+        self.verification = verification
+        self.biometrics = biometrics

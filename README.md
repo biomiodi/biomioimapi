@@ -5,6 +5,8 @@ GRANT ALL PRIVILEGES ON biomio_db . * TO 'biomio_admin'@'localhost';
 CREATE USER 'biomio_admin'@'%' IDENTIFIED BY 'gate';
 GRANT ALL PRIVILEGES ON * . * TO 'biomio_admin'@'%';
 
+ALTER TABLE Profiles ADD externalId VARCHAR(128);
+
 update Profiles
 left join Emails on Emails.profileId=Profiles.id and Emails.`primary`=TRUE
 set Profiles.name = Emails.email;
@@ -37,3 +39,17 @@ CREATE TABLE WebResourcePolicies (
   FOREIGN KEY (`policiesId`) REFERENCES Policies(`id`),
   FOREIGN KEY (`webResourceId`) REFERENCES WebResources(`id`)
 )
+
+
+ALTER TABLE Profiles MODIFY COLUMN api_id INT DEFAULT 0;
+ALTER TABLE Profiles MODIFY COLUMN phones VARCHAR(255) NULL DEFAULT NULL ;
+ALTER TABLE Profiles MODIFY COLUMN password VARCHAR(50) NULL DEFAULT NULL ;
+ALTER TABLE Profiles MODIFY COLUMN temp_pass VARCHAR(50) NULL DEFAULT NULL ;
+ALTER TABLE Profiles MODIFY COLUMN acc_type INT DEFAULT 0;
+ALTER TABLE Profiles MODIFY COLUMN last_ip VARCHAR(20) NULL DEFAULT NULL ;
+
+
+ALTER TABLE UserInfo MODIFY COLUMN voice TINYINT DEFAULT 0;
+ALTER TABLE UserInfo MODIFY COLUMN motto VARCHAR(255) NULL DEFAULT NULL ;
+ALTER TABLE UserInfo MODIFY COLUMN bday DATE NULL DEFAULT NULL ;
+ALTER TABLE UserInfo MODIFY COLUMN occupation VARCHAR(255) NULL DEFAULT NULL ;
