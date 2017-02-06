@@ -82,13 +82,14 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         # 'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'biomio_db',
-        'USER': 'biomio_admin',
+        # 'NAME': 'biomio_db',
+        'NAME': os.environ.get('BIOMIO_DB_NAME'),
+        'USER': os.environ.get('BIOMIO_DB_USER'),
         # 'USER': 'biomio_gate',
-        'PASSWORD': 'gate',
-        'HOST': 'localhost',
+        'PASSWORD': os.environ.get('BIOMIO_DB_PASS'),
+        'HOST': os.environ.get('BIOMIO_DB_HOST'),
         # 'HOST': '35.161.49.206',
-        'PORT': '5432',
+        'PORT': os.environ.get('BIOMIO_DB_PORT'),
     }
 }
 
