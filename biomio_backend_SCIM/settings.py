@@ -49,7 +49,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'biomio_backend_SCIM.urls'
+ROOT_URLCONF = 'urls'
 
 TEMPLATES = [
     {
@@ -74,13 +74,20 @@ WSGI_APPLICATION = 'biomio_backend_SCIM.wsgi.application'
 # https://docs.djangoproject.com/en/1.10/ref/settings/#databases
 
 DATABASES = {
+    # mysql_host = '35.161.49.206'
+    # mysql_user = 'biomio_gate'
+    # mysql_pass = 'gate'
+    # mysql_db_name = 'biomio_db'
+
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         # 'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'biomio_db',
         'USER': 'biomio_admin',
+        # 'USER': 'biomio_gate',
         'PASSWORD': 'gate',
         'HOST': 'localhost',
+        # 'HOST': '35.161.49.206',
         'PORT': '5432',
     }
 }
