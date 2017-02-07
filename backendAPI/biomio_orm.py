@@ -1,6 +1,8 @@
 import pony.orm as pny
 import datetime
-import redis
+import ast
+
+from biomio_backend_SCIM.settings import redis_conn, REDIS_BIOMIO_GENERAL_CHANNEL, REDIS_TRAINING_STATUS_KEY_PARAMS
 
 from backendAPI.models import BiomioResourcesMeta
 from models import UserMeta, UserName, User, Email, PhoneNumber, BiomioResource, BiomioPolicies, BiomioPoliciesMeta, \
@@ -8,9 +10,6 @@ from models import UserMeta, UserName, User, Email, PhoneNumber, BiomioResource,
     BiomioEnrollment, BiomioEnrollmentBiometrics, BiomioEnrollmentTraining, BiomioEnrollmentVerification
 from biomio_backend_SCIM.settings import DATABASES
 import random
-
-REDIS_BIOMIO_GENERAL_CHANNEL = 'biomio_general:%s'
-REDIS_TRAINING_STATUS_KEY_PARAMS = REDIS_BIOMIO_GENERAL_CHANNEL % 'params:training:status:%s'
 
 # import warnings
 #
@@ -1165,13 +1164,8 @@ class EnrollmentORM:
                     code = None
                     status = False
 
-                pool = redis.ConnectionPool(host='localhost', port=6379, db=0)
-                r = redis.Redis(connection_pool=pool)
-                # print r.get(REDIS_TRAINING_STATUS_KEY_PARAMS % device.device_token)
-                if r.get(REDIS_TRAINING_STATUS_KEY_PARAMS % device.device_token):
-                    import ast
-
-                    data = ast.literal_eval(r.get(REDIS_TRAINING_STATUS_KEY_PARAMS % device.device_token))
+                if redis_conn.get(REDIS_TRAINING_STATUS_KEY_PARAMS % device.device_token):
+                    data = ast.literal_eval(redis_conn.get(REDIS_TRAINING_STATUS_KEY_PARAMS % device.device_token))
                     device_training = BiomioEnrollmentTraining(status=data.get('status'), progress=data.get('progress'))
                     device_biometrics = BiomioEnrollmentBiometrics(training=device_training, type='face')
                     biometrics.append(device_biometrics)

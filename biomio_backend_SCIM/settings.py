@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/1.10/ref/settings/
 """
 
 import os
+import redis
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -135,4 +136,14 @@ STATIC_URL = '/static/'
 
 SCIM_ADDR = 'urn:ietf:params:scim:schemas:core:2.0:%s'
 
-AI_REST_URL = 'http://gate.biom.io/training?device_id=%s&code=AAAAA'
+# AI_REST_URL = 'http://gate.biom.io/training?device_id=%s&code=AAAAA'
+AI_REST_URL = os.environ.get('AI_REST_URL')
+
+REDIS_HOST = os.environ.get('BIOMIO_REDIS_HOST')
+REDIS_PORT = os.environ.get('BIOMIO_REDIS_PORT')
+
+pool = redis.ConnectionPool(host=REDIS_HOST, port=REDIS_PORT, db=0)
+redis_conn = redis.Redis(connection_pool=pool)
+
+REDIS_BIOMIO_GENERAL_CHANNEL = 'biomio_general:%s'
+REDIS_TRAINING_STATUS_KEY_PARAMS = REDIS_BIOMIO_GENERAL_CHANNEL % 'params:training:status:%s'
