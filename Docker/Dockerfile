@@ -34,11 +34,11 @@ RUN apt-get update && apt-get install -y \
 
 RUN easy_install pip
 
-RUN /usr/sbin/mysqld & \
+# RUN /usr/sbin/mysqld & \
 
-    sleep 10s &&\
+#    sleep 10s &&\
 
-    echo "CREATE DATABASE biomio_db; GRANT ALL ON *.* TO 'biomio_admin'@'%' IDENTIFIED BY 'gate' WITH GRANT OPTION; FLUSH PRIVILEGES; " | mysql
+#    echo "CREATE DATABASE biomio_db; GRANT ALL ON *.* TO 'biomio_admin'@'%' IDENTIFIED BY 'gate' WITH GRANT OPTION; FLUSH PRIVILEGES; " | mysql
 
 #CMD ["/usr/bin/mysqld_safe"]
 
@@ -61,7 +61,7 @@ RUN chmod 600 /root/.ssh/id_rsa
 ENV GITBRANCH master
 ENV GITURL "git@bitbucket.org:biomio/biomioimapi.git"
 
-ARG CACHE_DATE=2016-01-01
+#ARG CACHE_DATE=2016-01-01
 RUN ssh-keyscan bitbucket.org >> ~/.ssh/known_hosts
 
 
@@ -74,10 +74,10 @@ RUN cd /opt/ && pip install -r biomioimapi/requirements.txt
 # add (the rest of) our code
 COPY . /opt/biomioimapi/
 
-RUN echo "service mysql start" >> ~/.bashrc
+#RUN echo "service mysql start" >> ~/.bashrc
 
-RUN echo "mysql -u biomio_admin -pgate biomio_db < /opt/biomioimapi/dump.sql" >> ~/.bashrc
+#RUN echo "mysql -u biomio_admin -pgate biomio_db < /opt/biomioimapi/dump.sql" >> ~/.bashrc
 
 
-EXPOSE 80
-CMD ["supervisord", "-n"]
+EXPOSE 85
+#CMD ["supervisord", "-n"]
