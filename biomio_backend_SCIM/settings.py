@@ -26,7 +26,7 @@ SECRET_KEY = '%m-2p_lo5bae90x48m%o&=jm2#o60a4)u0f#n0_(huovuouzqw'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['ai-dev.biom.io', 'localhost']
 
 
 # Application definition
