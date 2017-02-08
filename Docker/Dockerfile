@@ -55,6 +55,7 @@ COPY supervisor-app.conf /etc/supervisor/conf.d/
 RUN mkdir /root/.ssh
 COPY id_rsa /root/.ssh
 RUN chmod 600 /root/.ssh/id_rsa
+RUN ls -l /root/.ssh
 
 
 # Clone project from GIT
