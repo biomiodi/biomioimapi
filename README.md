@@ -39,7 +39,7 @@ CREATE TABLE WebResourcePolicies (
   PRIMARY KEY(`id`),
   FOREIGN KEY (`policiesId`) REFERENCES Policies(`id`),
   FOREIGN KEY (`webResourceId`) REFERENCES WebResources(`id`)
-)
+);
 
 
 ALTER TABLE Profiles MODIFY COLUMN api_id INT DEFAULT 0;
