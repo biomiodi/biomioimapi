@@ -9,12 +9,12 @@ import pony.orm as pny
 from biomio_backend_SCIM.settings import SCIM_ADDR, AI_REST_URL
 
 from biomio_orm import UserORM, Providers, ProviderUsers, BiomioResourceORM, BiomioPoliciesORM, Profiles, DevicesORM,\
-    EnrollmentORM
+    EnrollmentORM, ProviderJWTKeysORM
 from serializers import UserSerializer, BiomioResourceSerializer, BiomioServiceProviderSerializer, \
     BiomioPoliciesSerializer, DevicesSerializer, BiomioEnrollmentSerializer
 from models import BiomioServiceProvider
 from .http import JsonResponse, JsonError
-from .decorators import header_required
+from .decorators import header_required, jwt_required, provider_user, provider_biomio_resource, provider_biomio_policies
 from django.utils.decorators import method_decorator
 
 from ServiceProviderConfigurationEndpoints.schemas import Schema, SchemaSerializer, scim_schemas
@@ -99,24 +99,25 @@ def api_schemas_detail(request, pk, format=None):
 
 
 class ApiUsersList(APIView):
+    @method_decorator(jwt_required)
     @pny.db_session
     def get(self, request, provider_id, format=None):
-        try:
-            Providers[provider_id]
-        except pny.ObjectNotFound:
-            return JsonError('Wrong Provider ID', status=status.HTTP_404_NOT_FOUND)
+        # try:
+        #     Providers[provider_id]
+        # except pny.ObjectNotFound:
+        #     return JsonError('Wrong Provider ID', status=status.HTTP_404_NOT_FOUND)
 
         users = UserORM.instance().all(provider_id)
         serializer = UserSerializer(users, context={'request': request}, many=True)
         return JsonResponse(serializer.data)
 
-    @method_decorator(header_required)
+    @method_decorator(jwt_required)
     @pny.db_session
     def post(self, request, provider_id, format=None):
-        try:
-            Providers[provider_id]
-        except pny.ObjectNotFound:
-            return JsonError('Wrong Provider ID', status=status.HTTP_404_NOT_FOUND)
+        # try:
+        #     Providers[provider_id]
+        # except pny.ObjectNotFound:
+        #     return JsonError('Wrong Provider ID', status=status.HTTP_404_NOT_FOUND)
 
         serializer = UserSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
@@ -130,7 +131,9 @@ class ApiUsersList(APIView):
 
 
 class ApiUsersDetail(APIView):
-    def get(self, request, pk, format=None):
+    @method_decorator(jwt_required)
+    @method_decorator(provider_user)
+    def get(self, request, provider_id, pk, format=None):
         user = UserORM.instance().get(pk)
         if user:
             serializer = UserSerializer(user, context={'request': request})
@@ -139,8 +142,10 @@ class ApiUsersDetail(APIView):
             return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
     @method_decorator(header_required)
+    @method_decorator(jwt_required)
+    @method_decorator(provider_user)
     @pny.db_session
-    def put(self, request, pk, format=None):
+    def put(self, request, provider_id, pk, format=None):
         user = UserORM.instance().get(pk)
         if user:
             data = request.data
@@ -152,7 +157,9 @@ class ApiUsersDetail(APIView):
         else:
             return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
-    def delete(self, request, pk, format=None):
+    @method_decorator(jwt_required)
+    @method_decorator(provider_user)
+    def delete(self, request, provider_id, pk, format=None):
         user = UserORM.instance().get(pk)
         if user:
             result = UserORM.instance().delete(user)
@@ -165,24 +172,26 @@ class ApiUsersDetail(APIView):
 
 
 class ApiBiomioResourcesList(APIView):
+    @method_decorator(jwt_required)
     @pny.db_session
     def get(self, request, provider_id, format=None):
-        try:
-            Providers[provider_id]
-        except pny.ObjectNotFound:
-            return JsonError('Wrong Provider ID', status=status.HTTP_404_NOT_FOUND)
+        # try:
+        #     Providers[provider_id]
+        # except pny.ObjectNotFound:
+        #     return JsonError('Wrong Provider ID', status=status.HTTP_404_NOT_FOUND)
 
         web_resources = BiomioResourceORM.instance().all(provider_id)
         serializer = BiomioResourceSerializer(web_resources, context={'request': request}, many=True)
         return JsonResponse(serializer.data)
 
     @method_decorator(header_required)
+    @method_decorator(jwt_required)
     @pny.db_session
     def post(self, request, provider_id, format=None):
-        try:
-            Providers[provider_id]
-        except pny.ObjectNotFound:
-            return JsonError('Wrong Provider ID', status=status.HTTP_404_NOT_FOUND)
+        # try:
+        #     Providers[provider_id]
+        # except pny.ObjectNotFound:
+        #     return JsonError('Wrong Provider ID', status=status.HTTP_404_NOT_FOUND)
 
         data = request.data
         data['providerId'] = provider_id
@@ -196,8 +205,10 @@ class ApiBiomioResourcesList(APIView):
 
 
 class ApiBiomioResourcesDetail(APIView):
+    @method_decorator(jwt_required)
+    @method_decorator(provider_biomio_resource)
     @pny.db_session
-    def get(self, request, pk, format=None):
+    def get(self, request, provider_id, pk, format=None):
         web_resource = BiomioResourceORM.instance().get(pk)
         if web_resource:
             serializer = BiomioResourceSerializer(web_resource, context={'request': request})
@@ -206,8 +217,10 @@ class ApiBiomioResourcesDetail(APIView):
             return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
     @method_decorator(header_required)
+    @method_decorator(jwt_required)
+    @method_decorator(provider_biomio_resource)
     @pny.db_session
-    def put(self, request, pk, format=None):
+    def put(self, request, provider_id, pk, format=None):
         web_resource = BiomioResourceORM.instance().get(pk)
         if web_resource:
             data = request.data
@@ -222,7 +235,10 @@ class ApiBiomioResourcesDetail(APIView):
         else:
             return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
-    def delete(self, request, pk, format=None):
+    @method_decorator(jwt_required)
+    @method_decorator(provider_biomio_resource)
+    @pny.db_session
+    def delete(self, request, provider_id, pk, format=None):
         web_resource = BiomioResourceORM.instance().get(pk)
         if web_resource:
             result = BiomioResourceORM.instance().delete(web_resource)
@@ -234,42 +250,8 @@ class ApiBiomioResourcesDetail(APIView):
             return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
 
-class ApiBiomioServiceProviderList(APIView):
-    @pny.db_session
-    def get(self, request, provider_id, format=None):
-        try:
-            Providers[provider_id]
-        except pny.ObjectNotFound:
-            return JsonError('Wrong Provider ID', status=status.HTTP_404_NOT_FOUND)
-
-        web_resources = BiomioResourceORM.instance().all(provider_id)
-
-        serializer = BiomioServiceProviderSerializer(
-            BiomioServiceProvider(resources=web_resources),
-            context={'request': request}
-        )
-
-        return JsonResponse(serializer.data)
-
-    # @pny.db_session
-    # def post(self, request, provider_id, format=None):
-    #     try:
-    #         Providers[provider_id]
-    #     except pny.ObjectNotFound:
-    #         return JsonError('Wrong Provider ID', status=status.HTTP_404_NOT_FOUND)
-    #
-    #     data = request.data
-    #     data['providerId'] = provider_id
-    #
-    #     serializer = WebResourceSerializer(data=data)
-    #     if serializer.is_valid():
-    #         web_resource = serializer.save()
-    #
-    #         return JsonResponse(WebResourceSerializer(web_resource, context={'request': request}).data, status=status.HTTP_201_CREATED)
-    #     return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
 class ApiBiomioPoliciesList(APIView):
+    @method_decorator(jwt_required)
     @pny.db_session
     def get(self, request, provider_id, format=None):
         try:
@@ -281,6 +263,7 @@ class ApiBiomioPoliciesList(APIView):
         serializer = BiomioPoliciesSerializer(policies, context={'request': request}, many=True)
         return JsonResponse(serializer.data)
 
+    @method_decorator(jwt_required)
     @pny.db_session
     def post(self, request, provider_id, format=None):
         try:
@@ -302,8 +285,10 @@ class ApiBiomioPoliciesList(APIView):
 
 
 class ApiBiomioPoliciesDetail(APIView):
+    @method_decorator(jwt_required)
+    @method_decorator(provider_biomio_policies)
     @pny.db_session
-    def get(self, request, pk, format=None):
+    def get(self, request, provider_id, pk, format=None):
         policies = BiomioPoliciesORM.instance().get(pk)
         if policies:
             serializer = BiomioPoliciesSerializer(policies, context={'request': request})
@@ -312,8 +297,10 @@ class ApiBiomioPoliciesDetail(APIView):
             return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
     @method_decorator(header_required)
+    @method_decorator(jwt_required)
+    @method_decorator(provider_biomio_policies)
     @pny.db_session
-    def put(self, request, pk, format=None):
+    def put(self, request, provider_id, pk, format=None):
         policies = BiomioPoliciesORM.instance().get(pk)
         if policies:
             data = request.data
@@ -329,7 +316,10 @@ class ApiBiomioPoliciesDetail(APIView):
         else:
             return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
-    def delete(self, request, pk, format=None):
+    @method_decorator(jwt_required)
+    @method_decorator(provider_biomio_policies)
+    @pny.db_session
+    def delete(self, request, provider_id, pk, format=None):
         policies = BiomioPoliciesORM.instance().get(pk)
         if policies:
             result = BiomioPoliciesORM.instance().delete(policies)
@@ -440,3 +430,12 @@ class ApiBiomioEnrollmentDetail(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             return Response({'errors': 'Not Found!'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET', 'POST', ])
+def api_test_jwt(request, provider_id, format=None):
+    if request.method == 'GET':
+        return Response({'token': ProviderJWTKeysORM.instance().get_token(provider_id)}, status=status.HTTP_200_OK)
+    else:
+        ProviderJWTKeysORM.instance().set(provider_id)
+        return Response({'header': 'success'}, status=status.HTTP_401_UNAUTHORIZED)

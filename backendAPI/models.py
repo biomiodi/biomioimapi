@@ -51,6 +51,15 @@ class PhoneNumber(object):
         self.value = value
 
 
+class BiomioResourcesMeta(object):
+    def __init__(self, id=None, pk=None, created=None, lastModified=None, location=None):
+        self.id = id
+        self.pk = pk
+        self.created = created or datetime.now()
+        self.lastModified = lastModified or datetime.now()
+        self.location = location
+
+
 class BiomioResource(object):
     def __init__(self, name=None, domain=None, providerId=None, id=None, meta=None, users=None):
         self.id = id
@@ -59,15 +68,6 @@ class BiomioResource(object):
         self.domain = domain
         self.meta = meta
         self.users = users
-
-
-class BiomioResourcesMeta(object):
-    def __init__(self, id=None, pk=None, created=None, lastModified=None, location=None):
-        self.id = id
-        self.pk = pk
-        self.created = created or datetime.now()
-        self.lastModified = lastModified or datetime.now()
-        self.location = location
 
 
 class BiomioPolicies(object):

@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/1.10/ref/settings/
 
 import os
 import redis
+import datetime
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -26,7 +27,7 @@ SECRET_KEY = '%m-2p_lo5bae90x48m%o&=jm2#o60a4)u0f#n0_(huovuouzqw'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['ai-dev.biom.io', 'localhost']
+ALLOWED_HOSTS = ['ai-dev.biom.io', 'localhost', '127.0.0.1']
 
 
 # Application definition
@@ -38,6 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -75,11 +78,6 @@ WSGI_APPLICATION = 'biomio_backend_SCIM.wsgi.application'
 # https://docs.djangoproject.com/en/1.10/ref/settings/#databases
 
 DATABASES = {
-    # mysql_host = '35.161.49.206'
-    # mysql_user = 'biomio_gate'
-    # mysql_pass = 'gate'
-    # mysql_db_name = 'biomio_db'
-
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         # 'ENGINE': 'django.db.backends.postgresql_psycopg2',

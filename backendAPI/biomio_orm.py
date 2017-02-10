@@ -2,6 +2,9 @@ import pony.orm as pny
 import datetime
 import ast
 
+import python_jwt as jwt
+import Crypto.PublicKey.RSA as RSA
+
 from biomio_backend_SCIM.settings import redis_conn, REDIS_BIOMIO_GENERAL_CHANNEL, REDIS_TRAINING_STATUS_KEY_PARAMS
 
 from backendAPI.models import BiomioResourcesMeta
@@ -86,6 +89,14 @@ class Providers(database.Entity):
     name = pny.Required(str, 255, lazy=True)
 
 
+class ProviderJWTKeys(database.Entity):
+    _table_ = 'ProviderJWTKeys'
+    id = pny.PrimaryKey(int, auto=True)
+    providerId = pny.Required(int)
+    private_key = pny.Required(pny.LongStr)
+    public_key = pny.Required(pny.LongStr)
+
+
 class ProviderUsers(database.Entity):
     _table_ = 'ProviderUsers'
     id = pny.PrimaryKey(int, auto=True)
@@ -162,6 +173,87 @@ class VerificationCodes(database.Entity):
 
 # pny.sql_debug(True)
 database.generate_mapping(create_tables=True)
+
+
+class ProviderUsersORM:
+    _instance = None
+
+    @classmethod
+    def instance(cls):
+        if cls._instance is None:
+            cls._instance = ProviderUsersORM()
+        return cls._instance
+
+    @pny.db_session
+    def get(self, providerId, userId):
+        return True if pny.select(pu for pu in ProviderUsers if pu.provider_id == providerId and pu.user_id == userId) else False
+
+
+class ProviderJWTKeysORM:
+    _instance = None
+
+    @classmethod
+    def instance(cls):
+        if cls._instance is None:
+            cls._instance = ProviderJWTKeysORM()
+        return cls._instance
+
+    @pny.db_session
+    def get(self, providerId):
+        try:
+            providerJWT = pny.select(jwt for jwt in ProviderJWTKeys if jwt.providerId == providerId)
+            if providerJWT:
+                providerJWT = list(providerJWT)[0]
+                data = providerJWT.public_key
+            else:
+                raise pny.ObjectNotFound(Emails)
+        except pny.ObjectNotFound:
+            data = None
+        return data
+
+    @pny.db_session
+    def get_token(self, providerId):
+        try:
+            providerJWT = pny.select(jwt for jwt in ProviderJWTKeys if jwt.providerId == providerId)
+            if providerJWT:
+                providerJWT = list(providerJWT)[0]
+
+                private_key = RSA.importKey(providerJWT.private_key)
+                payload = {'provider': providerId}
+
+                token = jwt.generate_jwt(payload, private_key, 'RS256', datetime.timedelta(minutes=5))
+                data = token
+            else:
+                raise pny.ObjectNotFound(Emails)
+        except pny.ObjectNotFound:
+            data = None
+        return data
+
+
+    @pny.db_session
+    def set(self, providerId):
+        try:
+            provider = Providers[providerId]
+            providerJWT = pny.select(jwt for jwt in ProviderJWTKeys if jwt.providerId == providerId)
+
+            key = RSA.generate(1024)
+            private_pem = key.exportKey()
+            pub_pem = key.publickey().exportKey()
+
+            if providerJWT:
+                providerJWT = list(providerJWT)[0]
+
+                providerJWT.private_key = private_pem
+                providerJWT.public_key = pub_pem
+                pny.commit()
+            else:
+                providerJWT = ProviderJWTKeys(providerId=providerId, private_key=private_pem, public_key=pub_pem)
+                pny.commit()
+
+            data = providerJWT.public_key
+        except pny.ObjectNotFound:
+            data = None
+        return data
 
 
 class EmailORM:
@@ -608,8 +700,10 @@ class BiomioResourceMetaORM:
         data = dict()
         if isinstance(obj, BiomioResources):
             data.update({'pk': obj.id})
+            data.update({'id': obj.id})
             data.update({'created': obj.date_created})
             data.update({'lastModified': obj.date_modified})
+            data.update({'location': obj.id})
         return data
 
     @pny.db_session
@@ -809,6 +903,7 @@ class BiomioPoliciesMetaORM:
             data.update({'pk': obj.id})
             data.update({'created': obj.dateCreated})
             data.update({'lastModified': obj.dateModified})
+            data.update({'location': obj.id})
         return data
 
     @pny.db_session

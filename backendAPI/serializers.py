@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from rest_framework.reverse import reverse
+
 from models import UserMeta, UserName, User, Email, PhoneNumber, BiomioResourcesMeta, BiomioResource, \
     BiomioPolicies, BiomioPoliciesMeta, DeviceMeta, Application
 from biomio_orm import UserORM, BiomioResourceORM, BiomioPoliciesORM, Device, DevicesMetaORM, DevicesORM, \
@@ -6,10 +8,22 @@ from biomio_orm import UserORM, BiomioResourceORM, BiomioPoliciesORM, Device, De
 from biomio_backend_SCIM.settings import SCIM_ADDR
 
 
+class UserHyperlink(serializers.HyperlinkedRelatedField):
+    view_name = 'scim-users-detail'
+
+    def get_url(self, obj, view_name, request, format):
+        url_kwargs = {
+            'provider_id': request.META.get('PATH_INFO').split('/')[2],
+            'pk': obj
+        }
+        return reverse(view_name, kwargs=url_kwargs, request=request, format=format)
+
+
 class UserMetaSerializer(serializers.Serializer):
     created = serializers.DateTimeField(required=False, read_only=True)
     lastModified = serializers.DateTimeField(required=False, read_only=True)
-    location = serializers.HyperlinkedIdentityField(view_name='scim-users-detail', read_only=True)
+    # location = serializers.HyperlinkedIdentityField(view_name='scim-users-detail', read_only=True)
+    location = UserHyperlink(read_only=True)
 
     def create(self, validated_data):
         return UserMeta(**validated_data)
@@ -173,10 +187,22 @@ class UserSerializer(serializers.Serializer):
         return UserORM.instance().save(instance)
 
 
+class BiomioResourceHyperlink(serializers.HyperlinkedRelatedField):
+    view_name = 'scim-biomio-resources-detail'
+
+    def get_url(self, obj, view_name, request, format):
+        url_kwargs = {
+            'provider_id': request.META.get('PATH_INFO').split('/')[2],
+            'pk': obj
+        }
+        return reverse(view_name, kwargs=url_kwargs, request=request, format=format)
+
+
 class BiomioResourceMetaSerializer(serializers.Serializer):
     created = serializers.DateTimeField(required=False, read_only=True)
     lastModified = serializers.DateTimeField(required=False, read_only=True)
-    location = serializers.HyperlinkedIdentityField(view_name='scim-biomio-resources-detail', read_only=True)
+    # location = serializers.HyperlinkedIdentityField(view_name='scim-biomio-resources-detail', read_only=True)
+    location = BiomioResourceHyperlink(read_only=True)
 
     def create(self, validated_data):
         return BiomioResourcesMeta(**validated_data)
@@ -202,7 +228,7 @@ class BiomioResourceSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255, required=True)
     domain = serializers.CharField(max_length=255, required=True)
 
-    meta = BiomioResourceMetaSerializer(read_only=True)
+    meta = BiomioResourceMetaSerializer(required=False, allow_null=True, read_only=True)
     users = BiomioResourceUserSerializer(many=True)
 
     def get_schemas(self, obj):
@@ -251,10 +277,22 @@ class BiomioServiceProviderSerializer(serializers.Serializer):
         return [SCIM_ADDR % obj.__class__.__name__]
 
 
+class BiomioPoliciesHyperlink(serializers.HyperlinkedRelatedField):
+    view_name = 'scim-biomio-policies-detail'
+
+    def get_url(self, obj, view_name, request, format):
+        url_kwargs = {
+            'provider_id': request.META.get('PATH_INFO').split('/')[2],
+            'pk': obj
+        }
+        return reverse(view_name, kwargs=url_kwargs, request=request, format=format)
+
+
 class BiomioPoliciesMetaSerializer(serializers.Serializer):
     created = serializers.DateTimeField(required=False, read_only=True)
     lastModified = serializers.DateTimeField(required=False, read_only=True)
-    location = serializers.HyperlinkedIdentityField(view_name='scim-biomio-policies-detail', read_only=True)
+    # location = serializers.HyperlinkedIdentityField(view_name='scim-biomio-policies-detail', read_only=True)
+    location = BiomioPoliciesHyperlink(read_only=True)
 
     def create(self, validated_data):
         return BiomioPoliciesMeta(**validated_data)
