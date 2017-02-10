@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from models import UserMeta, UserName, User, Email, PhoneNumber, BiomioResourcesMeta, BiomioResource, \
-    BiomioPolicies, BiomioPoliciesMeta, DeviceMeta, Application
-from biomio_orm import UserORM, BiomioResourceORM, BiomioPoliciesORM, Device, DevicesMetaORM, DevicesORM, \
-    ApplicationsORM
+    BiomioPolicies, BiomioPoliciesMeta, BiomioDeviceMeta, Application, Group
+from biomio_orm import UserORM, BiomioResourceORM, BiomioPoliciesORM, BiomioDevice, BiomioDevicesMetaORM, \
+    BiomioDevicesORM, ApplicationsORM, GroupsORM
 from biomio_backend_SCIM.settings import SCIM_ADDR
 
 
@@ -330,14 +330,13 @@ class ApplicationSerializer(serializers.Serializer):
         return instance
 
 
-class DevicesMetaSerializer(serializers.Serializer):
+class MetaSerializer(serializers.Serializer):
     created = serializers.DateTimeField(required=False, read_only=True)
     lastModified = serializers.DateTimeField(required=False, read_only=True)
 
     def update(self, instance, validated_data):
         for key, value in validated_data.items():
             setattr(instance, key, value)
-
         return instance
 
 
@@ -348,21 +347,21 @@ class DevicesSerializer(serializers.Serializer):
     user = serializers.IntegerField()
     title = serializers.CharField(max_length=255, required=True)
     body = serializers.CharField(max_length=255, required=False, read_only=True)
-    meta = DevicesMetaSerializer(read_only=True)
+    meta = MetaSerializer(read_only=True)
     application = ApplicationSerializer(read_only=True)
 
     def get_schemas(self, obj):
         return [SCIM_ADDR % obj.__class__.__name__]
 
     def create(self, validated_data):
-        devices = Device(**validated_data)
-        return DevicesORM.instance().save(devices)
+        devices = BiomioDevice(**validated_data)
+        return BiomioDevicesORM.instance().save(devices)
 
     def update(self, instance, validated_data):
         for key, value in validated_data.items():
             setattr(instance, key, value)
 
-        return DevicesORM.instance().save(instance)
+        return BiomioDevicesORM.instance().save(instance)
 
 
 class BiomioEnrollmentVerificationSerializer(serializers.Serializer):
@@ -384,3 +383,76 @@ class BiomioEnrollmentBiometricsSerializer(serializers.Serializer):
 class BiomioEnrollmentSerializer(serializers.Serializer):
     verification = BiomioEnrollmentVerificationSerializer()
     biometrics = BiomioEnrollmentBiometricsSerializer(many=True)
+
+
+class GroupUsersSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    type = serializers.CharField(max_length=255, required=False)
+    name = serializers.CharField(max_length=150)
+
+
+class GroupBiomioResourcesSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField(max_length=255, required=False)
+    domain = serializers.CharField(max_length=255, required=False)
+
+
+class GroupsSerializer(serializers.Serializer):
+    schemas = serializers.SerializerMethodField()
+
+    id = serializers.IntegerField(read_only=True)
+    providerId = serializers.IntegerField(required=True)
+    title = serializers.CharField(max_length=255, required=True)
+    body = serializers.CharField(max_length=255, required=False, read_only=True)
+    meta = MetaSerializer(read_only=True)
+    users = GroupUsersSerializer(many=True, required=False)
+    resources = GroupBiomioResourcesSerializer(many=True, required=False)
+
+    def get_schemas(self, obj):
+        return [SCIM_ADDR % obj.__class__.__name__]
+
+    def create(self, validated_data):
+        resources_data = validated_data.pop('resources', None)
+        users_data = validated_data.pop('users', None)
+
+        group = Group(**validated_data)
+        if resources_data:
+            group.resources = list()
+            for resource_data in resources_data:
+                print resource_data
+                if resource_data.get('id'):
+                    resource = BiomioResourceORM.instance().get(resource_data.get('id'))
+                    group.resources.append(resource)
+        if users_data:
+            group.users = list()
+            for user_data in users_data:
+                print user_data
+                if user_data.get('id'):
+                    resource = UserORM.instance().get(user_data.get('id'))
+                    group.users.append(resource)
+
+        return GroupsORM.instance().save(group)
+
+    def update(self, instance, validated_data):
+        resources_data = validated_data.pop('resources', None)
+        users_data = validated_data.pop('users', None)
+
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+
+        if resources_data or resources_data == []:
+            instance.resources = list()
+            for resource_data in resources_data:
+                print resource_data
+                if resource_data.get('id'):
+                    resource = BiomioResourceORM.instance().get(resource_data.get('id'))
+                    instance.resources.append(resource)
+        if users_data or users_data == []:
+            instance.users = list()
+            for user_data in users_data:
+                print user_data
+                if user_data.get('id'):
+                    user = UserORM.instance().get(user_data.get('id'))
+                    instance.users.append(user)
+
+        return GroupsORM.instance().save(instance)

@@ -1,4 +1,4 @@
-import requests
+# import requests
 from rest_framework.decorators import api_view
 
 from rest_framework.views import APIView
@@ -8,10 +8,10 @@ import pony.orm as pny
 
 from biomio_backend_SCIM.settings import SCIM_ADDR, AI_REST_URL
 
-from biomio_orm import UserORM, Providers, ProviderUsers, BiomioResourceORM, BiomioPoliciesORM, Profiles, DevicesORM,\
-    EnrollmentORM
+from biomio_orm import UserORM, Providers, ProviderUsers, BiomioResourceORM, BiomioPoliciesORM, Profiles, BiomioDevicesORM, \
+    EnrollmentORM, GroupsORM, GroupsMetaORM
 from serializers import UserSerializer, BiomioResourceSerializer, BiomioServiceProviderSerializer, \
-    BiomioPoliciesSerializer, DevicesSerializer, BiomioEnrollmentSerializer
+    BiomioPoliciesSerializer, DevicesSerializer, BiomioEnrollmentSerializer, GroupsSerializer, MetaSerializer
 from models import BiomioServiceProvider
 from .http import JsonResponse, JsonError
 from .decorators import header_required
@@ -341,7 +341,7 @@ class ApiBiomioPoliciesDetail(APIView):
             return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
 
-class ApiDevicesList(APIView):
+class ApiBiomioDevicesList(APIView):
     @pny.db_session
     def get(self, request, pk, format=None):
         try:
@@ -349,7 +349,7 @@ class ApiDevicesList(APIView):
         except pny.ObjectNotFound:
             return JsonResponse('Wrong User ID', status=status.HTTP_404_NOT_FOUND)
 
-        devices = DevicesORM.instance().all(pk)
+        devices = BiomioDevicesORM.instance().all(pk)
         serializer = DevicesSerializer(devices, context={'request': request}, many=True)
         return JsonResponse(serializer.data)
 
@@ -372,10 +372,10 @@ class ApiDevicesList(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ApiDevicesDetail(APIView):
+class ApiBiomioDevicesDetail(APIView):
     @pny.db_session
     def get(self, request, pk, format=None):
-        device = DevicesORM.instance().get(pk)
+        device = BiomioDevicesORM.instance().get(pk)
         if device:
             serializer = DevicesSerializer(device, context={'request': request})
             return JsonResponse(serializer.data)
@@ -385,7 +385,7 @@ class ApiDevicesDetail(APIView):
     @method_decorator(header_required)
     @pny.db_session
     def put(self, request, pk, format=None):
-        device = DevicesORM.instance().get(pk)
+        device = BiomioDevicesORM.instance().get(pk)
         if device:
             data = request.data
 
@@ -400,9 +400,9 @@ class ApiDevicesDetail(APIView):
             return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
     def delete(self, request, pk, format=None):
-        device = DevicesORM.instance().get(pk)
+        device = BiomioDevicesORM.instance().get(pk)
         if device:
-            result = DevicesORM.instance().delete(device)
+            result = BiomioDevicesORM.instance().delete(device)
             if result:
                 return JsonResponse()
             else:
@@ -427,16 +427,86 @@ class ApiBiomioEnrollmentDetail(APIView):
         application = 1 if data.get('verification') else 0
 
         if not data.get('verification'):
-            device = DevicesORM.instance().get(device_id)
+            device = BiomioDevicesORM.instance().get(device_id)
             if device.device_token:
                 print AI_REST_URL % device.device_token
                 # requests.post(AI_REST_URL % device.device_token)
             else:
-                return Response({'errors': 'Device not registered!'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'errors': 'BiomioDevice not registered!'}, status=status.HTTP_404_NOT_FOUND)
 
         enrollment = EnrollmentORM.instance().gen_verification_code(dev_id=device_id, application=application)
         if enrollment:
             serializer = BiomioEnrollmentSerializer(enrollment, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
-            return Response({'errors': 'Not Found!'}, status=status.HTTP_404_NOT_FOUND)
+            return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
+
+class ApiGroupsList(APIView):
+    @pny.db_session
+    def get(self, request, provider_id, format=None):
+        try:
+            Providers[provider_id]
+        except pny.ObjectNotFound:
+            return JsonResponse('Wrong Provider ID', status=status.HTTP_404_NOT_FOUND)
+
+        groups = GroupsORM.instance().all(provider_id)
+        serializer = GroupsSerializer(groups, context={'request': request}, many=True)
+        return JsonResponse(serializer.data)
+
+    @method_decorator(header_required)
+    @pny.db_session
+    def post(self, request, provider_id, format=None):
+        try:
+            Providers[provider_id]
+        except pny.ObjectNotFound:
+            return JsonResponse('Wrong Provider ID', status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data
+        data['providerId'] = provider_id
+
+        serializer = GroupsSerializer(data=data, context={'request': request}, partial=True)
+        if serializer.is_valid():
+            groups = serializer.save()
+
+            return JsonResponse(
+                GroupsSerializer(groups, context={'request': request}).data, status=status.HTTP_201_CREATED
+            )
+        return JsonError(serializer.errors)
+
+class ApiGroupDetail(APIView):
+    @pny.db_session
+    def get(self, request, pk, format=None):
+        group = GroupsORM.instance().get(pk)
+        if group:
+            serializer = GroupsSerializer(group, context={'request': request})
+            return JsonResponse(serializer.data)
+        else:
+            return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
+
+    @method_decorator(header_required)
+    @pny.db_session
+    def put(self, request, pk, format=None):
+        group = GroupsORM.instance().get(pk)
+        if group:
+            data = request.data
+
+            serializer = GroupsSerializer(group, data=data, partial=True, context={'request': request})
+            if serializer.is_valid():
+                group = serializer.save()
+                serializer = GroupsSerializer(group, context={'request': request})
+
+                return JsonResponse(serializer.data, status=status.HTTP_201_CREATED)
+            return JsonError(serializer.errors)
+        else:
+            return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, pk, format=None):
+        group = GroupsORM.instance().get(pk)
+        if group:
+            result = GroupsORM.instance().delete(group)
+            if result:
+                return JsonResponse()
+            else:
+                return JsonError('Not Found!', status=status.HTTP_409_CONFLICT)
+        else:
+            return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
