@@ -9,8 +9,8 @@ from biomio_backend_SCIM.settings import redis_conn, REDIS_BIOMIO_GENERAL_CHANNE
 
 from backendAPI.models import BiomioResourcesMeta
 from models import UserMeta, UserName, User, Email, PhoneNumber, BiomioResource, BiomioPolicies, BiomioPoliciesMeta, \
-    Device, DeviceMeta, Application, \
-    BiomioEnrollment, BiomioEnrollmentBiometrics, BiomioEnrollmentTraining, BiomioEnrollmentVerification
+    BiomioDevice, BiomioDeviceMeta, Application, BiomioEnrollment, BiomioEnrollmentBiometrics, \
+    BiomioEnrollmentTraining, BiomioEnrollmentVerification, Group, GroupMeta
 from biomio_backend_SCIM.settings import DATABASES
 import random
 
@@ -138,7 +138,7 @@ class WebResourcePolicies(database.Entity):
     webResourceId = pny.Required(int)
 
 
-class Devices(database.Entity):
+class BiomioDevices(database.Entity):
     _table_ = 'UserServices'
     id = pny.PrimaryKey(int, auto=True)
     profileId = pny.Required(int)
@@ -169,6 +169,30 @@ class VerificationCodes(database.Entity):
     status = pny.Required(int)
     application = pny.Required(int)
     profileId = pny.Required(int)
+
+
+class Groups(database.Entity):
+    _table_ = 'Groups'
+    id = pny.PrimaryKey(int, auto=True)
+    providerId = pny.Required(int)
+    title = pny.Required(str, 255, lazy=True)
+    body = pny.Optional(str, 255, lazy=True)
+    created = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
+    lastModified = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
+
+
+class GroupUsers(database.Entity):
+    _table_ = 'GroupUsers'
+    id = pny.PrimaryKey(int, auto=True)
+    groupId = pny.Required(int)
+    userId = pny.Required(int)
+
+
+class GroupWebResources(database.Entity):
+    _table_ = 'GroupWebResources'
+    id = pny.PrimaryKey(int, auto=True)
+    groupId = pny.Required(int)
+    webResourceId = pny.Required(int)
 
 
 # pny.sql_debug(True)
@@ -1008,7 +1032,7 @@ class BiomioPoliciesORM:
                         for resource in obj.resources:
                             web_resource_policies_data = WebResourcePolicies.get(policiesId=policies.id, webResourceId=resource.id)
                             if not web_resource_policies_data:
-                                BiomioResourceUsers(policiesId=obj.id, webResourceId=resource.id)
+                                WebResourcePolicies(policiesId=obj.id, webResourceId=resource.id)
                                 pny.commit()
 
                             resource_list.append(resource.id)
@@ -1054,18 +1078,18 @@ class BiomioPoliciesORM:
         return True
 
 
-class DevicesMetaORM:
+class BiomioDevicesMetaORM:
     _instance = None
 
     @classmethod
     def instance(cls):
         if cls._instance is None:
-            cls._instance = DevicesMetaORM()
+            cls._instance = BiomioDevicesMetaORM()
         return cls._instance
 
     def to_dict(self, obj):
         data = dict()
-        if isinstance(obj, Devices):
+        if isinstance(obj, BiomioDevices):
             data.update({'pk': obj.id})
             data.update({'created': obj.date_created})
             data.update({'lastModified': obj.date_modified})
@@ -1074,28 +1098,28 @@ class DevicesMetaORM:
     @pny.db_session
     def get(self, id):
         try:
-            devices = Devices.get(id=id)
+            devices = BiomioDevices.get(id=id)
             if devices:
-                data = DeviceMeta(**self.to_dict(devices))
+                data = BiomioDeviceMeta(**self.to_dict(devices))
             else:
-                raise pny.ObjectNotFound(Devices)
+                raise pny.ObjectNotFound(BiomioDevices)
         except pny.ObjectNotFound:
             data = None
         return data
 
 
-class DevicesORM:
+class BiomioDevicesORM:
     _instance = None
 
     @classmethod
     def instance(cls):
         if cls._instance is None:
-            cls._instance = DevicesORM()
+            cls._instance = BiomioDevicesORM()
         return cls._instance
 
     def to_dict(self, obj):
         data = dict()
-        if isinstance(obj, Devices):
+        if isinstance(obj, BiomioDevices):
             data.update({'id': obj.id})
             data.update({'user': obj.profileId})
             data.update({'title': obj.title})
@@ -1105,27 +1129,27 @@ class DevicesORM:
     @pny.db_session
     def get(self, id):
         try:
-            device = Devices.get(id=id)
+            device = BiomioDevices.get(id=id)
             if device:
-                data = Device(**self.to_dict(device))
-                data.meta = DevicesMetaORM.instance().get(data.id)
+                data = BiomioDevice(**self.to_dict(device))
+                data.meta = BiomioDevicesMetaORM.instance().get(data.id)
                 if data.device_token:
                     data.application = ApplicationsORM.instance().get(data.device_token)
                 else:
                     data.application = None
             else:
-                raise pny.ObjectNotFound(Devices)
+                raise pny.ObjectNotFound(BiomioDevices)
         except pny.ObjectNotFound:
             data = None
         return data
 
     @pny.db_session
     def all(self, profileId=None):
-        devices = pny.select(e for e in Devices if e.profileId == profileId)
+        devices = pny.select(e for e in BiomioDevices if e.profileId == profileId)
 
         data_list = list()
         for device in devices:
-            data = DevicesORM.instance().get(device.id)
+            data = BiomioDevicesORM.instance().get(device.id)
             data_list.append(
                 data
             )
@@ -1133,15 +1157,15 @@ class DevicesORM:
 
     @pny.db_session
     def save(self, obj):
-        if isinstance(obj, Device):
+        if isinstance(obj, BiomioDevice):
             if not obj.id:
-                device = Devices(title=obj.title, profileId=obj.user)
+                device = BiomioDevices(title=obj.title, profileId=obj.user)
                 pny.commit()
 
                 data = self.get(device.id)
             else:
                 try:
-                    device = Devices[obj.id]
+                    device = BiomioDevices[obj.id]
                 except pny.ObjectNotFound:
                     return False
 
@@ -1161,14 +1185,13 @@ class DevicesORM:
     @pny.db_session
     def delete(self, obj):
         try:
-            #ToDo check necessity of deleting ApplicationsUser and Applications if Device is deleted
-            device = Devices[obj.id]
+            #ToDo check necessity of deleting ApplicationsUser and Applications if BiomioDevice is deleted
+            device = BiomioDevices[obj.id]
             if device:
 
                 if device.device_token:
                     applications_user = ApplicationsUser[device.device_token]
                     applications_user.delete()
-                if device.device_token:
                     application = Applications[device.device_token]
                     application.delete()
 
@@ -1176,7 +1199,7 @@ class DevicesORM:
 
                 pny.commit()
             else:
-                raise pny.ObjectNotFound(Devices)
+                raise pny.ObjectNotFound(BiomioDevices)
         except pny.ObjectNotFound:
             return False
         return True
@@ -1236,7 +1259,7 @@ class EnrollmentORM:
     @pny.db_session
     def get(self, dev_id):
         try:
-            device = Devices.get(id=dev_id)
+            device = BiomioDevices.get(id=dev_id)
             if device:
                 verification_code = VerificationCodes.get(device_id=dev_id, application=1)
                 if verification_code:
@@ -1272,7 +1295,7 @@ class EnrollmentORM:
                 enrollment = BiomioEnrollment(verification=enrollment_verification, biometrics=biometrics)
                 data = enrollment
             else:
-                raise pny.ObjectNotFound(Devices)
+                raise pny.ObjectNotFound(BiomioDevices)
         except pny.ObjectNotFound:
             data = None
         return data
@@ -1280,7 +1303,7 @@ class EnrollmentORM:
     @pny.db_session
     def gen_verification_code(self, dev_id, application):
         try:
-            device = Devices.get(id=dev_id)
+            device = BiomioDevices.get(id=dev_id)
             if device:
                 verification_code = VerificationCodes.select_by_sql('SELECT v.id, v.code, v.status '
                                                                     'FROM VerificationCodes v '
@@ -1333,7 +1356,200 @@ class EnrollmentORM:
 
                 data = enrollment
             else:
-                raise pny.ObjectNotFound(Devices)
+                raise pny.ObjectNotFound(BiomioDevices)
         except pny.ObjectNotFound:
             data = None
         return data
+
+
+class GroupsMetaORM:
+    _instance = None
+
+    @classmethod
+    def instance(cls):
+        if cls._instance is None:
+            cls._instance = GroupsMetaORM()
+        return cls._instance
+
+    def to_dict(self, obj):
+        data = dict()
+        if isinstance(obj, Groups):
+            data.update({'pk': obj.id})
+            data.update({'created': obj.created})
+            data.update({'lastModified': obj.lastModified})
+        return data
+
+    @pny.db_session
+    def get(self, id):
+        try:
+            group = Groups.get(id=id)
+            if group:
+                data = GroupMeta(**self.to_dict(group))
+            else:
+                raise pny.ObjectNotFound(Groups)
+        except pny.ObjectNotFound:
+            data = None
+        return data
+
+
+class GroupsORM:
+    _instance = None
+
+    @classmethod
+    def instance(cls):
+        if cls._instance is None:
+            cls._instance = GroupsORM()
+        return cls._instance
+
+    def to_dict(self, obj):
+        data = dict()
+        if isinstance(obj, Groups):
+            data.update({'id': obj.id})
+            data.update({'providerId': obj.providerId})
+            data.update({'body': obj.body})
+            data.update({'title': obj.title})
+        return data
+
+    @pny.db_session
+    def get(self, group_id):
+        try:
+            group = Groups.get(id=group_id)
+            if group:
+                data = Group(**self.to_dict(group))
+                data.meta = GroupsMetaORM.instance().get(data.id)
+                data.users = Profiles.select_by_sql('SELECT u.id, u.name, u.type, u.externalId '
+                                                    'FROM Profiles u '
+                                                    'LEFT JOIN GroupUsers gu ON gu.userId = u.id '
+                                                    'WHERE gu.groupId = %s' % group_id)
+                data.resources = BiomioResources.select_by_sql('SELECT wr.id, wr.title, wr.domain '
+                                                               'FROM WebResources wr '
+                                                               'LEFT JOIN GroupWebResources gwr ON gwr.webResourceId = wr.id '
+                                                               'WHERE gwr.groupId = %s' % group_id)
+            else:
+                raise pny.ObjectNotFound(Group)
+        except pny.ObjectNotFound:
+            data = None
+        return data
+
+    @pny.db_session
+    def all(self, providerId=None):
+        groups = pny.select(e for e in Groups if e.providerId == providerId)
+
+        data_list = list()
+        for group in groups:
+            data = GroupsORM.instance().get(group.id)
+            data_list.append(
+                data
+            )
+        return data_list
+
+    @pny.db_session
+    def save(self, obj):
+        if isinstance(obj, Group):
+            if not obj.id:
+                group = Groups(title=obj.title, providerId=obj.providerId)
+                if obj.body:
+                    group.body = obj.body
+
+                pny.commit()
+
+                if obj.users:
+                    for user in obj.users:
+                        GroupUsers(userId=user.id, groupId=group.id)
+
+                        pny.commit()
+                if obj.resources:
+                    for resource in obj.resources:
+                        GroupWebResources(webResourceId=resource.id, groupId=group.id)
+
+                        pny.commit()
+
+                data = self.get(group.id)
+            else:
+                try:
+                    group = Groups[obj.id]
+                except pny.ObjectNotFound:
+                    return None
+
+                if group:
+                    group.title = obj.title
+                    group.providerId = obj.providerId
+                    if obj.body:
+                        group.body = obj.body
+                    group.lastModified = datetime.datetime.now()
+                    # Update group users and group resources
+                    if obj.resources:
+                        resources_list = list()
+                        for resource in obj.resources:
+                            group_resources = GroupWebResources.get(groupId=group.id, webResourceId=resource.id)
+                            if not group_resources:
+                                GroupWebResources(groupId=group.id, webResourceId=resource.id)
+                                pny.commit()
+
+                            resources_list.append(resource.id)
+                        if resources_list:
+                            resources = pny.select(gwr for gwr in GroupWebResources if gwr.groupId == group.id
+                                                   and gwr.webResourceId not in resources_list)
+                            for resource in resources:
+                                resource.delete()
+                                pny.commit()
+                    else:
+                        resources = pny.select(gwr for gwr in GroupWebResources if gwr.groupId == group.id)
+                        for resource in resources:
+                            resource.delete()
+                            pny.commit()
+
+                    if obj.users:
+                        users_list = list()
+                        for user in obj.users:
+                            group_user = GroupUsers.get(groupId=group.id, userId=user.id)
+                            if not group_user:
+                                GroupUsers(groupId=group.id, userId=user.id)
+                                pny.commit()
+
+                            users_list.append(user.id)
+                        if users_list:
+                            users = pny.select(gu for gu in GroupUsers if gu.groupId == group.id
+                                               and gu.userId not in users_list)
+                            for user in users:
+                                user.delete()
+                                pny.commit()
+                    else:
+                        users = pny.select(gu for gu in GroupUsers if gu.groupId == group.id)
+                        for user in users:
+                            user.delete()
+                            pny.commit()
+
+                    pny.commit()
+
+                    data = self.get(obj.id)
+                else:
+                    data = None
+        else:
+            data = None
+        return data
+
+    @pny.db_session
+    def delete(self, obj):
+        try:
+            group = Groups[obj.id]
+
+            if group:
+                group_web_resources = pny.select(gwr for gwr in GroupWebResources
+                                                 if gwr.groupId == group.id)
+                for group_web_resource in group_web_resources:
+                    group_web_resource.delete()
+                    pny.commit()
+                group_users = pny.select(gu for gu in GroupUsers
+                                         if gu.groupId == group.id)
+                for group_user in group_users:
+                    group_user.delete()
+                    pny.commit()
+                group.delete()
+
+                pny.commit()
+            else:
+                raise pny.ObjectNotFound(Groups)
+        except pny.ObjectNotFound:
+            return False
+        return True

@@ -89,7 +89,7 @@ class BiomioPoliciesMeta(object):
         self.location = location
 
 
-class Device(object):
+class BiomioDevice(object):
     def __init__(self, title=None, body=None, user=None, id=None, meta=None, status=None, device_token=None):
         self.id = id
         self.user = user
@@ -99,7 +99,7 @@ class Device(object):
         self.device_token = device_token
 
 
-class DeviceMeta(object):
+class BiomioDeviceMeta(object):
     def __init__(self, id=None, pk=None, created=None, lastModified=None):
         self.id = id
         self.pk = pk
@@ -146,3 +146,22 @@ class BiomioEnrollment(object):
     def __init__(self, biometrics=None, verification=None):
         self.verification = verification
         self.biometrics = biometrics
+
+
+class Group(object):
+    def __init__(self, title=None, body=None, users=None, id=None, meta=None, resources=None, providerId=None):
+        self.id = id
+        self.providerId = providerId
+        self.title = title
+        self.body = body
+        self.meta = meta
+        self.users = users
+        self.resources = resources
+
+
+class GroupMeta(object):
+    def __init__(self, id=None, pk=None, created=None, lastModified=None):
+        self.id = id
+        self.pk = pk
+        self.created = created or datetime.now()
+        self.lastModified = lastModified or datetime.now()
