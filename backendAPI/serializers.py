@@ -378,6 +378,28 @@ class MetaSerializer(serializers.Serializer):
         return instance
 
 
+class BiomioDevicesHyperlink(serializers.HyperlinkedRelatedField):
+    view_name = 'scim-user-biomio-device-detail'
+
+    def get_url(self, obj, view_name, request, format):
+        url_kwargs = {
+            'provider_id': request.META.get('PATH_INFO').split('/')[2],
+            'pk': obj
+        }
+        return reverse(view_name, kwargs=url_kwargs, request=request, format=format)
+
+
+class DevicesMetaSerializer(serializers.Serializer):
+    created = serializers.DateTimeField(required=False, read_only=True)
+    lastModified = serializers.DateTimeField(required=False, read_only=True)
+    location = BiomioDevicesHyperlink(read_only=True)
+
+    def update(self, instance, validated_data):
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+        return instance
+
+
 class DevicesSerializer(serializers.Serializer):
     schemas = serializers.SerializerMethodField()
 
@@ -385,7 +407,7 @@ class DevicesSerializer(serializers.Serializer):
     user = serializers.IntegerField()
     title = serializers.CharField(max_length=255, required=True)
     body = serializers.CharField(max_length=255, required=False, read_only=True)
-    meta = MetaSerializer(read_only=True)
+    meta = DevicesMetaSerializer(read_only=True)
     application = ApplicationSerializer(read_only=True)
 
     def get_schemas(self, obj):

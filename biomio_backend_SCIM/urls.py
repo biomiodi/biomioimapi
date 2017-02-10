@@ -43,18 +43,14 @@ urlpatterns = [
     url(r'^providers/(?P<provider_id>[0-9]+)/BiomioResources/(?P<pk>[0-9]+)$', views.ApiBiomioResourcesDetail.as_view(),
         name='scim-biomio-resources-detail'),
 
-    # url(r'^providers/(?P<provider_id>[0-9]+)/BiomioServiceProvider$', views.ApiBiomioServiceProviderList.as_view(),
-    #     name='scim-biomio-service-provider-list'),
-
     url(r'^providers/(?P<provider_id>[0-9]+)/BiomioPolicies$', views.ApiBiomioPoliciesList.as_view(),
         name='scim-biomio-policies-list'),
     url(r'^providers/(?P<provider_id>[0-9]+)/BiomioPolicies/(?P<pk>[0-9]+)$', views.ApiBiomioPoliciesDetail.as_view(),
         name='scim-biomio-policies-detail'),
 
-    url(r'^Users/(?P<pk>[0-9]+)/BiomioDevices', views.ApiBiomioDevicesList.as_view(),
+    url(r'^providers/(?P<provider_id>[0-9]+)/Users/(?P<pk>[0-9]+)/BiomioDevices', views.ApiBiomioDevicesList.as_view(),
         name='scim-user-biomio-devices-list'),
-
-    url(r'^BiomioDevices/(?P<pk>[0-9]+)$', views.ApiBiomioDevicesDetail.as_view(),
+    url(r'^providers/(?P<provider_id>[0-9]+)/BiomioDevices/(?P<pk>[0-9]+)$', views.ApiBiomioDevicesDetail.as_view(),
         name='scim-user-biomio-device-detail'),
 
     url(r'^BiomioDevices/(?P<device_id>[0-9]+)/BiomioEnrollment$', views.ApiBiomioEnrollmentDetail.as_view(),
@@ -66,7 +62,6 @@ urlpatterns = [
 
     url(r'^Groups/(?P<pk>[0-9]+)$', views.ApiGroupDetail.as_view(),
         name='scim-groups-detail'),
-
     url(r'^providers/(?P<provider_id>[0-9]+)/Groups$', views.ApiGroupsList.as_view(),
         name='scim-groups-list'),
 

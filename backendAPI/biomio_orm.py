@@ -1093,6 +1093,7 @@ class BiomioDevicesMetaORM:
             data.update({'pk': obj.id})
             data.update({'created': obj.date_created})
             data.update({'lastModified': obj.date_modified})
+            data.update({'location': obj.id})
         return data
 
     @pny.db_session

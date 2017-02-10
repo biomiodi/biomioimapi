@@ -4,7 +4,7 @@ import Crypto.PublicKey.RSA as RSA
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.response import Response
 from rest_framework import status
-from biomio_orm import ProviderJWTKeysORM, ProviderUsersORM, BiomioResourceORM, BiomioPoliciesORM
+from biomio_orm import ProviderJWTKeysORM, ProviderUsersORM, BiomioResourceORM, BiomioPoliciesORM, BiomioDevicesORM
 
 from .http import JsonError
 
@@ -167,6 +167,25 @@ def provider_biomio_policies(view_func):
                 {
                     'code': 'invalid_provider',
                     'description': 'Wrong Biomio Policies or Provider!'
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped_view
+
+
+def provider_biomio_device(view_func):
+    """Decorator which ensures device related to provider"""
+
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        biomio_device = BiomioDevicesORM.instance().get(kwargs.get('pk'))
+        if biomio_device and not ProviderUsersORM.instance().get(providerId=kwargs.get('provider_id'), userId=biomio_device.user):
+            return Response(
+                {
+                    'code': 'invalid_provider',
+                    'description': 'Wrong Device or Provider!'
                 },
                 status=status.HTTP_403_FORBIDDEN
             )

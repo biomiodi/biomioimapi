@@ -100,11 +100,12 @@ class BiomioDevice(object):
 
 
 class BiomioDeviceMeta(object):
-    def __init__(self, id=None, pk=None, created=None, lastModified=None):
+    def __init__(self, id=None, pk=None, created=None, lastModified=None, location=None):
         self.id = id
         self.pk = pk
         self.created = created or datetime.now()
         self.lastModified = lastModified or datetime.now()
+        self.location = location
 
 
 class Application(object):
