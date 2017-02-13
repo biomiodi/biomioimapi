@@ -172,6 +172,8 @@ class UserSerializer(serializers.Serializer):
                 email = Email(**email_data)
                 email.user = instance
                 instance.emails.append(email)
+        elif isinstance(emails_data, list):
+            instance.emails = list()
         else:
             instance.emails = False
 
@@ -181,6 +183,8 @@ class UserSerializer(serializers.Serializer):
                 phone = PhoneNumber(**phone_data)
                 phone.user = instance
                 instance.phoneNumbers.append(phone)
+        elif isinstance(phones_data, list):
+            instance.phoneNumbers = list()
         else:
             instance.phoneNumbers = False
 
@@ -265,6 +269,8 @@ class BiomioResourceSerializer(serializers.Serializer):
                 if user_data.get('id'):
                     user = UserORM.instance().get(user_data.get('id'))
                     instance.users.append(user)
+        elif isinstance(users_data, list):
+            instance.users = list()
 
         return BiomioResourceORM.instance().save(instance)
 

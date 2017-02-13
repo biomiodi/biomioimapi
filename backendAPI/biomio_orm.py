@@ -43,14 +43,14 @@ database.bind(
 
 class Phones(database.Entity):
     _table_ = 'Phones'
-    profileId = pny.Required(int)
+    profileId = pny.Required('Profiles')
     phone = pny.Required(str)
     date_created = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
 
 
 class Emails(database.Entity):
     _table_ = 'Emails'
-    profileId = pny.Required(int)
+    profileId = pny.Required('Profiles')
     email = pny.Required(str)
     verified = pny.Optional(bool, default=False)
     primary = pny.Optional(bool, default=False)
@@ -66,12 +66,16 @@ class Profiles(database.Entity):
     externalId = pny.Optional(str, 128, nullable=True, lazy=True)
     creation_time = pny.Required(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
     last_login_time = pny.Required(datetime.datetime, default=lambda: datetime.datetime.now(), auto=True, lazy=True)
+    user_name = pny.Optional('UserInfo', cascade_delete=True)
+    provider_users = pny.Optional('ProviderUsers', cascade_delete=True)
+    emails = pny.Set('Emails', cascade_delete=True)
+    phones = pny.Set('Phones', cascade_delete=True)
 
 
 class UserInfo(database.Entity):
     _table_ = 'UserInfo'
     id = pny.PrimaryKey(int, auto=True)
-    profileId = pny.Required(int)
+    profileId = pny.Required('Profiles')
     firstName = pny.Optional(str, 50, lazy=True, nullable=True)
     lastName = pny.Optional(str, 50, lazy=True, nullable=True)
     middleName = pny.Optional(str, 30, lazy=True, nullable=True)
@@ -101,7 +105,7 @@ class ProviderUsers(database.Entity):
     _table_ = 'ProviderUsers'
     id = pny.PrimaryKey(int, auto=True)
     provider_id = pny.Required(int)
-    user_id = pny.Required(int)
+    user_id = pny.Required('Profiles')
 
 
 class BiomioResources(database.Entity):
@@ -112,13 +116,14 @@ class BiomioResources(database.Entity):
     domain = pny.Required(str, 255, lazy=True)
     date_created = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
     date_modified = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
+    resource_users = pny.Set('BiomioResourceUsers', cascade_delete=True)
 
 
 class BiomioResourceUsers(database.Entity):
     _table_ = 'WebResourceUsers'
     id = pny.PrimaryKey(int, auto=True)
     userId = pny.Required(int)
-    webResourceId = pny.Required(int)
+    webResourceId = pny.Required('BiomioResources')
 
 
 class Policies(database.Entity):
@@ -210,7 +215,7 @@ class ProviderUsersORM:
 
     @pny.db_session
     def get(self, providerId, userId):
-        return True if pny.select(pu for pu in ProviderUsers if pu.provider_id == providerId and pu.user_id == userId) else False
+        return True if pny.select(pu for pu in ProviderUsers if pu.provider_id == providerId and pu.user_id.id == userId) else False
 
 
 class ProviderJWTKeysORM:
@@ -300,7 +305,7 @@ class EmailORM:
     @pny.db_session
     def get(self, profileId):
         try:
-            emails = pny.select(e for e in Emails if e.profileId == profileId)
+            emails = pny.select(e for e in Emails if e.profileId.id == profileId)
             if emails:
                 data = list()
                 for email in emails:
@@ -331,7 +336,7 @@ class PhoneNumberORM:
     @pny.db_session
     def get(self, profileId):
         try:
-            phones = pny.select(p for p in Phones if p.profileId == profileId)
+            phones = pny.select(p for p in Phones if p.profileId.id == profileId)
             if phones:
                 data = list()
                 for phone in phones:
@@ -356,8 +361,8 @@ class UserMetaORM:
         data = dict()
         if isinstance(obj, UserInfo):
             data.update({'id': obj.id})
-            data.update({'pk': obj.profileId})
-            data.update({'location': obj.profileId})
+            data.update({'pk': obj.profileId.id})
+            data.update({'location': obj.profileId.id})
             data.update({'created': obj.dateCreated})
             data.update({'lastModified': obj.dateModified})
         return data
@@ -530,28 +535,6 @@ class UserORM:
     @pny.db_session
     def delete(self, obj):
         try:
-            emails = pny.select(e for e in Emails if e.profileId == obj.id)
-            for email in emails:
-                email.delete()
-                pny.commit()
-
-            phones = pny.select(p for p in Phones if p.profileId == obj.id)
-            for phone in phones:
-                phone.delete()
-                pny.commit()
-
-            user_meta_list = pny.select(m for m in UserInfo if m.profileId == obj.id)
-            for user_meta in user_meta_list:
-                user_meta.delete()
-                pny.commit()
-
-            provider_users = pny.select(
-                provider_users for provider_users in ProviderUsers if provider_users.user_id == obj.id)
-            print provider_users
-            if provider_users:
-                provider_users.delete()
-                pny.commit()
-
             user = pny.select(u for u in Profiles if u.id == obj.id)
             if user:
                 user.delete()
@@ -572,12 +555,12 @@ class UserORM:
                 )
                 if obj.externalId:
                     user.externalId = obj.externalId
-                pny.commit()
+                # pny.commit()
 
                 user_meta = None
                 if obj.name:
                     user_meta = UserInfo(
-                        profileId=user.id,
+                        profileId=user,
 
                         firstName=obj.name.givenName,
                         lastName=obj.name.familyName,
@@ -585,40 +568,35 @@ class UserORM:
 
                         honorificPrefix=obj.name.honorificPrefix,
                         honorificSuffix=obj.name.honorificSuffix,
-                        formatted=obj.name.formatted,
-
-                        dateCreated = obj.meta.created,
-                        dateModified = obj.meta.lastModified
+                        formatted=obj.name.formatted
                     )
-                    pny.commit()
+                    # pny.commit()
                 else:
                     user_meta = UserInfo(
-                        profileId=user.id,
-
-                        dateCreated=obj.meta.created,
-                        dateModified=obj.meta.lastModified
+                        profileId=user
                     )
-                    pny.commit()
+                    # pny.commit()
+                user_meta.profileId = user
 
                 if obj.emails:
                     for email in obj.emails:
                         email_data = Emails(
-                            profileId=user.id,
+                            profileId=user,
 
                             email=email.value,
                             primary=email.primary
                         )
-                        pny.commit()
+                        # pny.commit()
 
                 if obj.phoneNumbers:
                     for phone in obj.phoneNumbers:
                         phone_data = Phones(
-                            profileId=user.id,
+                            profileId=user,
 
                             phone=phone.value,
                         )
-                        pny.commit()
-
+                        # pny.commit()
+                pny.commit()
                 data = self.get(user.id)
             else:
                 try:
@@ -660,49 +638,43 @@ class UserORM:
                             dateCreated=obj.meta.created,
                             dateModified=obj.meta.lastModified or datetime.datetime.now()
                         )
-                    pny.commit()
 
                     if obj.emails:
                         email_list = list()
                         for email in obj.emails:
-                            email_data = Emails.get(email=email.value, profileId=user.id)
+                            email_data = Emails.get(email=email.value, profileId=user)
                             if email_data:
                                 email_data.primary = email.primary
-                                pny.commit()
                             else:
-                                email_data = Emails(email=email.value, profileId=user.id, primary=email.primary)
-                                pny.commit()
+                                email_data = Emails(email=email.value, profileId=user, primary=email.primary)
+
                             email_list.append(email.value)
                         if email_list:
-                            emails = pny.select(e for e in Emails if e.profileId == obj.id and e.email not in email_list)
+                            emails = pny.select(e for e in Emails if e.profileId.id == obj.id and e.email not in email_list)
                             for email in emails:
                                 email.delete()
-                                pny.commit()
-                    # else:
-                    #     emails = pny.select(e for e in Emails if e.profileId == obj.id)
-                    #     for email in emails:
-                    #         email.delete()
-                    #         pny.commit()
+                    elif isinstance(obj.emails, list):
+                        emails = pny.select(e for e in Emails if e.profileId.id == obj.id)
+                        for email in emails:
+                            email.delete()
 
                     if obj.phoneNumbers:
                         phone_list = list()
                         for phone in obj.phoneNumbers:
-                            phone_data = Phones.get(phone=phone.value, profileId=user.id)
+                            phone_data = Phones.get(phone=phone.value, profileId=user)
                             if not phone_data:
-                                phone_data = Phones(phone=phone.value, profileId=user.id)
+                                phone_data = Phones(phone=phone.value, profileId=user)
                             phone_list.append(phone.value)
-                            pny.commit()
                         if phone_list:
-                            phones = pny.select(p for p in Phones if p.profileId == obj.id and p.phone not in phone_list)
+                            phones = pny.select(p for p in Phones if p.profileId.id == obj.id and p.phone not in phone_list)
                             for phone in phones:
                                 phone.delete()
-                                pny.commit()
-                    # else:
-                    #     phoneNumbers = pny.select(p for p in Phones if p.profileId == obj.id)
-                    #     for phone in phoneNumbers:
-                    #         phone.delete()
-                    #         pny.commit()
+                    elif isinstance(obj.phoneNumbers, list):
+                        phones = pny.select(p for p in Phones if p.profileId.id == obj.id)
+                        for phone in phones:
+                            phone.delete()
 
+                    pny.commit()
                     data = self.get(user.id)
                 else:
                     data = False
@@ -839,12 +811,10 @@ class BiomioResourceORM:
             if not obj.id:
                 web_resource = BiomioResources(title=obj.name, domain=obj.domain, providerId=obj.providerId)
 
-                pny.commit()
-
                 if obj.users:
                     for user in obj.users:
-                        BiomioResourceUsers(userId=user.id, webResourceId=web_resource.id)
-                        pny.commit()
+                        biomio_resource_users = BiomioResourceUsers(userId=user.id, webResourceId=web_resource)
+                pny.commit()
 
                 data = self.get(web_resource.id)
             else:
@@ -859,30 +829,28 @@ class BiomioResourceORM:
 
                     web_resource.date_modified = datetime.datetime.now()
 
-                    pny.commit()
-
                     if obj.users:
                         user_list = list()
                         for user in obj.users:
-                            web_resource_user_data = BiomioResourceUsers.get(userId=user.id, webResourceId=web_resource.id)
+                            web_resource_user_data = BiomioResourceUsers.get(userId=user.id, webResourceId=web_resource)
                             if not web_resource_user_data:
-                                BiomioResourceUsers(userId=user.id, webResourceId=web_resource.id)
-                                pny.commit()
+                                BiomioResourceUsers(userId=user.id, webResourceId=web_resource)
 
                             user_list.append(user.id)
                         if user_list:
                             users = pny.select(wru for wru in BiomioResourceUsers
-                                               if wru.webResourceId == web_resource.id
+                                               if wru.webResourceId == web_resource
                                                and wru.userId not in user_list)
                             for user in users:
                                 user.delete()
-                                pny.commit()
-                    else:
+
+                    elif isinstance(obj.users, list):
                         users = pny.select(wru for wru in BiomioResourceUsers
-                                           if wru.webResourceId == web_resource.id)
+                                           if wru.webResourceId == web_resource)
                         for user in users:
                             user.delete()
-                            pny.commit()
+
+                    pny.commit()
 
                     data = self.get(obj.id)
                 else:
@@ -896,13 +864,6 @@ class BiomioResourceORM:
         try:
             web_resource = BiomioResources.get(id=obj.id)
             if web_resource:
-
-                users = pny.select(wru for wru in BiomioResourceUsers
-                                   if wru.webResourceId == web_resource.id)
-                for user in users:
-                    user.delete()
-                    pny.commit()
-
                 web_resource.delete()
                 pny.commit()
             else:

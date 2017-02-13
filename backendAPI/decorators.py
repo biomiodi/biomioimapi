@@ -180,8 +180,17 @@ def provider_biomio_device(view_func):
 
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
-        biomio_device = BiomioDevicesORM.instance().get(kwargs.get('pk'))
-        if biomio_device and not ProviderUsersORM.instance().get(providerId=kwargs.get('provider_id'), userId=biomio_device.user):
+        try:
+            biomio_device = BiomioDevicesORM.instance().get(kwargs.get('pk'))
+            if biomio_device and not ProviderUsersORM.instance().get(providerId=kwargs.get('provider_id'), userId=biomio_device.user):
+                return Response(
+                    {
+                        'code': 'invalid_provider',
+                        'description': 'Wrong Device or Provider!'
+                    },
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except Exception:
             return Response(
                 {
                     'code': 'invalid_provider',

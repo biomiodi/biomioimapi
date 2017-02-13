@@ -56,14 +56,13 @@ urlpatterns = [
     url(r'^BiomioDevices/(?P<device_id>[0-9]+)/BiomioEnrollment$', views.ApiBiomioEnrollmentDetail.as_view(),
         name='scim-biomio-enrollment'),
 
-    url(r'^generate_jwt/(?P<provider_id>[0-9]+)$', views.api_test_jwt,
-        name='jwt'),
-
-
     url(r'^Groups/(?P<pk>[0-9]+)$', views.ApiGroupDetail.as_view(),
         name='scim-groups-detail'),
     url(r'^providers/(?P<provider_id>[0-9]+)/Groups$', views.ApiGroupsList.as_view(),
         name='scim-groups-list'),
+
+    url(r'^generate_jwt/(?P<provider_id>[0-9]+)$', views.api_test_jwt,
+        name='jwt'),
 
     # (?P<user_id>[0-9]+)
 ]

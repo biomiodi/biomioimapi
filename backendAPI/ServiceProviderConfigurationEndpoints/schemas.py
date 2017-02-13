@@ -1,8 +1,8 @@
 from biomio_backend_SCIM.settings import SCIM_ADDR
 from rest_framework import serializers
-from backendAPI.models import User, BiomioResource, BiomioServiceProvider, BiomioPolicies
+from backendAPI.models import User, BiomioResource, BiomioServiceProvider, BiomioPolicies, BiomioDevice, Group
 from backendAPI.serializers import UserSerializer, BiomioResourceSerializer, BiomioServiceProviderSerializer, \
-    BiomioPoliciesSerializer
+    BiomioPoliciesSerializer, DevicesSerializer, GroupsSerializer
 
 
 scim_types = {
@@ -29,6 +29,16 @@ scim_schemas = {
     SCIM_ADDR % 'BiomioPolicies': {
         'model': BiomioPolicies,
         'serializer': BiomioPoliciesSerializer(),
+        'exclude_fields': ['schemas']
+    },
+    SCIM_ADDR % 'BiomioDevice': {
+        'model': BiomioDevice,
+        'serializer': DevicesSerializer(),
+        'exclude_fields': ['schemas']
+    },
+    SCIM_ADDR % 'Group': {
+        'model': Group,
+        'serializer': GroupsSerializer(),
         'exclude_fields': ['schemas']
     }
 }
