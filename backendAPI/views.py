@@ -15,7 +15,7 @@ from serializers import UserSerializer, BiomioResourceSerializer, BiomioServiceP
 from models import BiomioServiceProvider
 from .http import JsonResponse, JsonError
 from .decorators import header_required, jwt_required, provider_user, provider_biomio_resource, \
-    provider_biomio_policies, provider_biomio_device
+    provider_biomio_policies, provider_biomio_device, provider_groups
 from django.utils.decorators import method_decorator
 
 from ServiceProviderConfigurationEndpoints.schemas import Schema, SchemaSerializer, scim_schemas
@@ -403,26 +403,19 @@ class ApiBiomioEnrollmentDetail(APIView):
         else:
             return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
+
 class ApiGroupsList(APIView):
+    @method_decorator(jwt_required)
     @pny.db_session
     def get(self, request, provider_id, format=None):
-        try:
-            Providers[provider_id]
-        except pny.ObjectNotFound:
-            return JsonResponse('Wrong Provider ID', status=status.HTTP_404_NOT_FOUND)
-
         groups = GroupsORM.instance().all(provider_id)
         serializer = GroupsSerializer(groups, context={'request': request}, many=True)
         return JsonResponse(serializer.data)
 
     @method_decorator(header_required)
+    @method_decorator(jwt_required)
     @pny.db_session
     def post(self, request, provider_id, format=None):
-        try:
-            Providers[provider_id]
-        except pny.ObjectNotFound:
-            return JsonResponse('Wrong Provider ID', status=status.HTTP_404_NOT_FOUND)
-
         data = request.data
         data['providerId'] = provider_id
 
@@ -435,9 +428,12 @@ class ApiGroupsList(APIView):
             )
         return JsonError(serializer.errors)
 
+
 class ApiGroupDetail(APIView):
+    @method_decorator(jwt_required)
+    @method_decorator(provider_groups)
     @pny.db_session
-    def get(self, request, pk, format=None):
+    def get(self, request, provider_id, pk, format=None):
         group = GroupsORM.instance().get(pk)
         if group:
             serializer = GroupsSerializer(group, context={'request': request})
@@ -446,8 +442,10 @@ class ApiGroupDetail(APIView):
             return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
     @method_decorator(header_required)
+    @method_decorator(jwt_required)
+    @method_decorator(provider_groups)
     @pny.db_session
-    def put(self, request, pk, format=None):
+    def put(self, request, provider_id, pk, format=None):
         group = GroupsORM.instance().get(pk)
         if group:
             data = request.data
@@ -462,7 +460,10 @@ class ApiGroupDetail(APIView):
         else:
             return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
-    def delete(self, request, pk, format=None):
+    @method_decorator(jwt_required)
+    @method_decorator(provider_groups)
+    @pny.db_session
+    def delete(self, request, provider_id, pk, format=None):
         group = GroupsORM.instance().get(pk)
         if group:
             result = GroupsORM.instance().delete(group)

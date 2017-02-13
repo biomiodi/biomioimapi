@@ -4,7 +4,8 @@ import Crypto.PublicKey.RSA as RSA
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.response import Response
 from rest_framework import status
-from biomio_orm import ProviderJWTKeysORM, ProviderUsersORM, BiomioResourceORM, BiomioPoliciesORM, BiomioDevicesORM
+from biomio_orm import ProviderJWTKeysORM, ProviderUsersORM, BiomioResourceORM, BiomioPoliciesORM, BiomioDevicesORM, \
+    GroupsORM
 
 from .http import JsonError
 
@@ -195,6 +196,35 @@ def provider_biomio_device(view_func):
                 {
                     'code': 'invalid_provider',
                     'description': 'Wrong Device or Provider!'
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped_view
+
+
+def provider_groups(view_func):
+    """Decorator which ensures device related to provider"""
+
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        try:
+            group = GroupsORM.instance().get(kwargs.get('pk'))
+
+            if (not group) or (int(group.providerId) != int(kwargs.get('provider_id'))):
+                return Response(
+                    {
+                        'code': 'invalid_provider',
+                        'description': 'Wrong Group or Provider!'
+                    },
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except Exception:
+            return Response(
+                {
+                    'code': 'invalid_provider',
+                    'description': 'Wrong Group or Provider!'
                 },
                 status=status.HTTP_403_FORBIDDEN
             )

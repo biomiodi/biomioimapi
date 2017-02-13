@@ -467,6 +467,28 @@ class GroupBiomioResourcesSerializer(serializers.Serializer):
     domain = serializers.CharField(max_length=255, required=False)
 
 
+class GroupsHyperlink(serializers.HyperlinkedRelatedField):
+    view_name = 'scim-groups-detail'
+
+    def get_url(self, obj, view_name, request, format):
+        url_kwargs = {
+            'provider_id': request.META.get('PATH_INFO').split('/')[2],
+            'pk': obj
+        }
+        return reverse(view_name, kwargs=url_kwargs, request=request, format=format)
+
+
+class GroupsMetaSerializer(serializers.Serializer):
+    created = serializers.DateTimeField(required=False, read_only=True)
+    lastModified = serializers.DateTimeField(required=False, read_only=True)
+    location = GroupsHyperlink(read_only=True)
+
+    def update(self, instance, validated_data):
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+        return instance
+
+
 class GroupsSerializer(serializers.Serializer):
     schemas = serializers.SerializerMethodField()
 
@@ -474,7 +496,7 @@ class GroupsSerializer(serializers.Serializer):
     providerId = serializers.IntegerField(required=True)
     title = serializers.CharField(max_length=255, required=True)
     body = serializers.CharField(max_length=255, required=False, read_only=True)
-    meta = MetaSerializer(read_only=True)
+    meta = GroupsMetaSerializer(read_only=True)
     users = GroupUsersSerializer(many=True, required=False)
     resources = GroupBiomioResourcesSerializer(many=True, required=False)
 
@@ -493,6 +515,9 @@ class GroupsSerializer(serializers.Serializer):
                 if resource_data.get('id'):
                     resource = BiomioResourceORM.instance().get(resource_data.get('id'))
                     group.resources.append(resource)
+        elif isinstance(resources_data, list):
+            group.resources = list()
+
         if users_data:
             group.users = list()
             for user_data in users_data:
@@ -500,6 +525,8 @@ class GroupsSerializer(serializers.Serializer):
                 if user_data.get('id'):
                     resource = UserORM.instance().get(user_data.get('id'))
                     group.users.append(resource)
+        elif isinstance(users_data, list):
+            group.users = list()
 
         return GroupsORM.instance().save(group)
 

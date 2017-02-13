@@ -187,19 +187,21 @@ class Groups(database.Entity):
     body = pny.Optional(str, 255, lazy=True)
     created = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
     lastModified = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
+    users = pny.Set('GroupUsers', cascade_delete=True)
+    web_resources = pny.Set('GroupWebResources', cascade_delete=True)
 
 
 class GroupUsers(database.Entity):
     _table_ = 'GroupUsers'
     id = pny.PrimaryKey(int, auto=True)
-    groupId = pny.Required(int)
+    groupId = pny.Required('Groups')
     userId = pny.Required(int)
 
 
 class GroupWebResources(database.Entity):
     _table_ = 'GroupWebResources'
     id = pny.PrimaryKey(int, auto=True)
-    groupId = pny.Required(int)
+    groupId = pny.Required('Groups')
     webResourceId = pny.Required(int)
 
 
@@ -1329,6 +1331,7 @@ class GroupsMetaORM:
             data.update({'pk': obj.id})
             data.update({'created': obj.created})
             data.update({'lastModified': obj.lastModified})
+            data.update({'location': obj.id})
         return data
 
     @pny.db_session
@@ -1403,19 +1406,15 @@ class GroupsORM:
                 if obj.body:
                     group.body = obj.body
 
-                pny.commit()
-
                 if obj.users:
                     for user in obj.users:
-                        GroupUsers(userId=user.id, groupId=group.id)
+                        GroupUsers(userId=user.id, groupId=group)
 
-                        pny.commit()
                 if obj.resources:
                     for resource in obj.resources:
-                        GroupWebResources(webResourceId=resource.id, groupId=group.id)
+                        GroupWebResources(webResourceId=resource.id, groupId=group)
 
-                        pny.commit()
-
+                pny.commit()
                 data = self.get(group.id)
             else:
                 try:
@@ -1430,47 +1429,43 @@ class GroupsORM:
                         group.body = obj.body
                     group.lastModified = datetime.datetime.now()
                     # Update group users and group resources
+
                     if obj.resources:
                         resources_list = list()
                         for resource in obj.resources:
-                            group_resources = GroupWebResources.get(groupId=group.id, webResourceId=resource.id)
+                            group_resources = GroupWebResources.get(groupId=group, webResourceId=resource.id)
                             if not group_resources:
-                                GroupWebResources(groupId=group.id, webResourceId=resource.id)
-                                pny.commit()
+                                GroupWebResources(groupId=group, webResourceId=resource.id)
 
                             resources_list.append(resource.id)
                         if resources_list:
-                            resources = pny.select(gwr for gwr in GroupWebResources if gwr.groupId == group.id
+                            resources = pny.select(gwr for gwr in GroupWebResources if gwr.groupId == group
                                                    and gwr.webResourceId not in resources_list)
                             for resource in resources:
                                 resource.delete()
-                                pny.commit()
-                    else:
-                        resources = pny.select(gwr for gwr in GroupWebResources if gwr.groupId == group.id)
+
+                    elif isinstance(obj.resources, list):
+                        resources = pny.select(gwr for gwr in GroupWebResources if gwr.groupId == group)
                         for resource in resources:
                             resource.delete()
-                            pny.commit()
 
                     if obj.users:
                         users_list = list()
                         for user in obj.users:
-                            group_user = GroupUsers.get(groupId=group.id, userId=user.id)
+                            group_user = GroupUsers.get(groupId=group, userId=user.id)
                             if not group_user:
-                                GroupUsers(groupId=group.id, userId=user.id)
-                                pny.commit()
+                                GroupUsers(groupId=group, userId=user.id)
 
                             users_list.append(user.id)
                         if users_list:
-                            users = pny.select(gu for gu in GroupUsers if gu.groupId == group.id
+                            users = pny.select(gu for gu in GroupUsers if gu.groupId == group
                                                and gu.userId not in users_list)
                             for user in users:
                                 user.delete()
-                                pny.commit()
-                    else:
-                        users = pny.select(gu for gu in GroupUsers if gu.groupId == group.id)
+                    elif isinstance(obj.users, list):
+                        users = pny.select(gu for gu in GroupUsers if gu.groupId == group)
                         for user in users:
                             user.delete()
-                            pny.commit()
 
                     pny.commit()
 
@@ -1487,16 +1482,16 @@ class GroupsORM:
             group = Groups[obj.id]
 
             if group:
-                group_web_resources = pny.select(gwr for gwr in GroupWebResources
-                                                 if gwr.groupId == group.id)
-                for group_web_resource in group_web_resources:
-                    group_web_resource.delete()
-                    pny.commit()
-                group_users = pny.select(gu for gu in GroupUsers
-                                         if gu.groupId == group.id)
-                for group_user in group_users:
-                    group_user.delete()
-                    pny.commit()
+                # group_web_resources = pny.select(gwr for gwr in GroupWebResources
+                #                                  if gwr.groupId == group.id)
+                # for group_web_resource in group_web_resources:
+                #     group_web_resource.delete()
+                #     pny.commit()
+                # group_users = pny.select(gu for gu in GroupUsers
+                #                          if gu.groupId == group.id)
+                # for group_user in group_users:
+                #     group_user.delete()
+                #     pny.commit()
                 group.delete()
 
                 pny.commit()
