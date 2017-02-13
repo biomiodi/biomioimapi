@@ -117,6 +117,7 @@ class BiomioResources(database.Entity):
     date_created = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
     date_modified = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
     resource_users = pny.Set('BiomioResourceUsers', cascade_delete=True)
+    biomio_resources = pny.Set('WebResourcePolicies')
 
 
 class BiomioResourceUsers(database.Entity):
@@ -135,12 +136,14 @@ class Policies(database.Entity):
     dateCreated = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
     dateModified = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
 
+    biomio_resources = pny.Set('WebResourcePolicies', cascade_delete=True)
+
 
 class WebResourcePolicies(database.Entity):
     _table_ = 'WebResourcePolicies'
     id = pny.PrimaryKey(int, auto=True)
-    policiesId = pny.Required(int)
-    webResourceId = pny.Required(int)
+    policiesId = pny.Required('Policies')
+    webResourceId = pny.Required('BiomioResources')
 
 
 class BiomioDevices(database.Entity):
@@ -965,13 +968,10 @@ class BiomioPoliciesORM:
                 if obj.body:
                     policies.body = obj.body
 
-                pny.commit()
-
-                print obj.resources
                 if obj.resources:
                     for resource in obj.resources:
-                        WebResourcePolicies(policiesId=policies.id, webResourceId=resource.id)
-                        pny.commit()
+                        WebResourcePolicies(policiesId=policies, webResourceId=resource.id)
+                pny.commit()
 
                 data = self.get(policies.id)
             else:
@@ -986,30 +986,27 @@ class BiomioPoliciesORM:
 
                     policies.dateModified = datetime.datetime.now()
 
-                    pny.commit()
-
                     if obj.resources:
                         resource_list = list()
                         for resource in obj.resources:
-                            web_resource_policies_data = WebResourcePolicies.get(policiesId=policies.id, webResourceId=resource.id)
+                            web_resource_policies_data = WebResourcePolicies.get(policiesId=policies, webResourceId=resource.id)
                             if not web_resource_policies_data:
                                 WebResourcePolicies(policiesId=obj.id, webResourceId=resource.id)
-                                pny.commit()
 
                             resource_list.append(resource.id)
                         if resource_list:
                             resources = pny.select(wrp for wrp in WebResourcePolicies
-                                                   if wrp.policiesId == policies.id
-                                                   and wrp.webResourceId not in resource_list)
+                                                   if wrp.policiesId == policies
+                                                   and wrp.webResourceId.id not in resource_list)
                             for resource in resources:
                                 resource.delete()
-                                pny.commit()
-                    else:
+
+                    elif isinstance(obj.resources, list):
                         resources = pny.select(wrp for wrp in WebResourcePolicies
-                                               if wrp.policiesId == policies.id)
+                                               if wrp.policiesId == policies)
                         for resource in resources:
                             resource.delete()
-                            pny.commit()
+                    pny.commit()
 
                     data = self.get(obj.id)
                 else:
@@ -1023,13 +1020,6 @@ class BiomioPoliciesORM:
         try:
             policies = Policies.get(id=obj.id)
             if policies:
-
-                resources = pny.select(wrp for wrp in WebResourcePolicies
-                                       if wrp.policiesId == policies.id)
-                for resource in resources:
-                    resource.delete()
-                    pny.commit()
-
                 policies.delete()
                 pny.commit()
             else:

@@ -356,6 +356,10 @@ class BiomioPoliciesSerializer(serializers.Serializer):
                 if resource_data.get('id'):
                     resource = BiomioResourceORM.instance().get(resource_data.get('id'))
                     instance.resources.append(resource)
+        elif isinstance(resources_data, list):
+            instance.resources = list()
+        else:
+            instance.resources = False
 
         return BiomioPoliciesORM.instance().save(instance)
 
