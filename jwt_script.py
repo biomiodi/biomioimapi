@@ -48,5 +48,40 @@ def geberate_token(providerID):
     return False
 
 
+@pny.db_session
+def create_provider(provider_name):
+    key = RSA.generate(1024)
+    private_pem = key.exportKey()
+    public_pem = key.publickey().exportKey()
+
+    result = database.execute("""SELECT p.id FROM Providers p WHERE p.name = '{}';""".format(provider_name))
+    result = result.fetchone()
+    if result:
+        return False
+    else:
+        database.execute(
+            """
+                INSERT INTO Providers (name)
+                VALUES ("{provider_name}");
+            """.format(provider_name=provider_name)
+        )
+        database.commit()
+
+        result = database.execute("""SELECT p.id FROM Providers p WHERE p.name = '{}';""".format(provider_name))
+        result = result.fetchone()
+
+        if result:
+            database.execute(
+                """
+                    INSERT INTO ProviderJWTKeys (private_key, public_key, providerID)
+                    VALUES ("{private_pem}", "{public_pem}", {providerID});
+                """.format(private_pem=private_pem, public_pem=public_pem, providerID=result[0])
+            )
+            database.commit()
+            return True
+        return False
+    print provider_name
+
+
 if __name__ == "__main__":
-    print geberate_token(sys.argv[1])
+    print create_provider(sys.argv[1])

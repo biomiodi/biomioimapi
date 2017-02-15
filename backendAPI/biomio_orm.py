@@ -240,7 +240,7 @@ class ProviderJWTKeysORM:
                 providerJWT = list(providerJWT)[0]
                 data = providerJWT.public_key
             else:
-                raise pny.ObjectNotFound(Emails)
+                raise pny.ObjectNotFound(ProviderJWTKeys)
         except pny.ObjectNotFound:
             data = None
         return data
@@ -462,6 +462,7 @@ class UserORM:
             data.update({'externalId': obj.externalId})
             data.update({'userName': obj.name})
         return data
+
 
     @pny.db_session
     def all_by_resource_id(self, resource_id):

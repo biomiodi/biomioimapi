@@ -4,7 +4,7 @@ from rest_framework.reverse import reverse
 from models import UserMeta, UserName, User, Email, PhoneNumber, BiomioResourcesMeta, BiomioResource, \
     BiomioPolicies, BiomioPoliciesMeta, BiomioDeviceMeta, Application, Group
 from biomio_orm import UserORM, BiomioResourceORM, BiomioPoliciesORM, BiomioDevice, BiomioDevicesMetaORM, \
-    BiomioDevicesORM, ApplicationsORM, GroupsORM
+    BiomioDevicesORM, ApplicationsORM, GroupsORM, ProviderUsersORM
 from biomio_backend_SCIM.settings import SCIM_ADDR
 
 
@@ -274,6 +274,12 @@ class BiomioResourceSerializer(serializers.Serializer):
 
         return BiomioResourceORM.instance().save(instance)
 
+    def validate_users(self, value):
+        for user_value in value:
+            if not ProviderUsersORM.instance().get(self.initial_data.get('providerId'), user_value.get('id')):
+                raise serializers.ValidationError("Wrong User ID.")
+        return value
+
 
 class BiomioServiceProviderSerializer(serializers.Serializer):
     schemas = serializers.SerializerMethodField()
@@ -362,6 +368,13 @@ class BiomioPoliciesSerializer(serializers.Serializer):
             instance.resources = False
 
         return BiomioPoliciesORM.instance().save(instance)
+
+    def validate_resources(self, value):
+        for resource_value in value:
+            resource = BiomioResourceORM.instance().get(resource_value.get('id'))
+            if not resource or int(resource.providerId) != int(self.initial_data.get('providerId')):
+                raise serializers.ValidationError("Wrong Resource ID.")
+        return value
 
 
 class ApplicationSerializer(serializers.Serializer):

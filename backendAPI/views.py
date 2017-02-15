@@ -118,7 +118,7 @@ class ApiUsersList(APIView):
             pny.commit()
 
             return JsonResponse(serializer.data, status=status.HTTP_201_CREATED)
-        return JsonError(serializer.errors)
+        return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ApiUsersDetail(APIView):
@@ -252,7 +252,7 @@ class ApiBiomioPoliciesList(APIView):
             return JsonResponse(
                 BiomioPoliciesSerializer(policies, context={'request': request}).data, status=status.HTTP_201_CREATED
             )
-        return JsonError(serializer.errors)
+        return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
 
 
 class ApiBiomioPoliciesDetail(APIView):
