@@ -78,7 +78,7 @@ def create_provider(provider_name):
                 """.format(private_pem=private_pem, public_pem=public_pem, providerID=result[0])
             )
             database.commit()
-            return True
+            return result[0]
         return False
     print provider_name
 
