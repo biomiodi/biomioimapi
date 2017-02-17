@@ -113,6 +113,7 @@ class ApiUsersList(APIView):
         serializer = UserSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             user = serializer.save()
+            # UserORM.instance().save(user)
 
             ProviderUsers(provider_id=provider_id, user_id=user.id)
             pny.commit()
@@ -130,9 +131,9 @@ class ApiUsersDetail(APIView):
             serializer = UserSerializer(user, context={'request': request})
             return JsonResponse(serializer.data)
         else:
-            return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
+            return JsonResponse('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
-    @method_decorator(header_required)
+    # @method_decorator(header_required)
     @method_decorator(jwt_required)
     @method_decorator(provider_user)
     @pny.db_session
@@ -144,9 +145,9 @@ class ApiUsersDetail(APIView):
             if serializer.is_valid():
                 serializer.save()
                 return JsonResponse(serializer.data, status=status.HTTP_201_CREATED)
-            return JsonError(serializer.errors)
+            return JsonResponse(serializer.errors)
         else:
-            return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
+            return JsonResponse('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
     @method_decorator(jwt_required)
     @method_decorator(provider_user)
@@ -157,9 +158,9 @@ class ApiUsersDetail(APIView):
             if result:
                 return JsonResponse()
             else:
-                return JsonError('Not Found!', status=status.HTTP_409_CONFLICT)
+                return JsonResponse('Not Found!', status=status.HTTP_409_CONFLICT)
         else:
-            return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
+            return JsonResponse('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
 
 class ApiBiomioResourcesList(APIView):
@@ -170,7 +171,7 @@ class ApiBiomioResourcesList(APIView):
         serializer = BiomioResourceSerializer(web_resources, context={'request': request}, many=True)
         return JsonResponse(serializer.data)
 
-    @method_decorator(header_required)
+    # @method_decorator(header_required)
     @method_decorator(jwt_required)
     @pny.db_session
     def post(self, request, provider_id, format=None):
@@ -182,7 +183,7 @@ class ApiBiomioResourcesList(APIView):
             web_resource = serializer.save()
             serializer = BiomioResourceSerializer(web_resource, context={'request': request})
             return JsonResponse(serializer.data, status=status.HTTP_201_CREATED)
-        return JsonError(serializer.errors)
+        return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ApiBiomioResourcesDetail(APIView):
@@ -197,7 +198,7 @@ class ApiBiomioResourcesDetail(APIView):
         else:
             return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
-    @method_decorator(header_required)
+    # @method_decorator(header_required)
     @method_decorator(jwt_required)
     @method_decorator(provider_biomio_resource)
     @pny.db_session
@@ -252,7 +253,7 @@ class ApiBiomioPoliciesList(APIView):
             return JsonResponse(
                 BiomioPoliciesSerializer(policies, context={'request': request}).data, status=status.HTTP_201_CREATED
             )
-        return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
+        return JsonError(serializer.errors)
 
 
 class ApiBiomioPoliciesDetail(APIView):
@@ -267,7 +268,7 @@ class ApiBiomioPoliciesDetail(APIView):
         else:
             return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
-    @method_decorator(header_required)
+    # @method_decorator(header_required)
     @method_decorator(jwt_required)
     @method_decorator(provider_biomio_policies)
     @pny.db_session
@@ -339,7 +340,7 @@ class ApiBiomioDevicesDetail(APIView):
         else:
             return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
-    @method_decorator(header_required)
+    # @method_decorator(header_required)
     @method_decorator(jwt_required)
     @method_decorator(provider_biomio_device)
     @pny.db_session
@@ -412,14 +413,14 @@ class ApiGroupsList(APIView):
         serializer = GroupsSerializer(groups, context={'request': request}, many=True)
         return JsonResponse(serializer.data)
 
-    @method_decorator(header_required)
+    # @method_decorator(header_required)
     @method_decorator(jwt_required)
     @pny.db_session
     def post(self, request, provider_id, format=None):
         data = request.data
         data['providerId'] = provider_id
 
-        serializer = GroupsSerializer(data=data, context={'request': request}, partial=True)
+        serializer = GroupsSerializer(data=data)
         if serializer.is_valid():
             groups = serializer.save()
 
@@ -441,7 +442,7 @@ class ApiGroupDetail(APIView):
         else:
             return JsonError('Not Found!', status=status.HTTP_404_NOT_FOUND)
 
-    @method_decorator(header_required)
+    # @method_decorator(header_required)
     @method_decorator(jwt_required)
     @method_decorator(provider_groups)
     @pny.db_session

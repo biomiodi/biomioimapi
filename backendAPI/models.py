@@ -24,7 +24,7 @@ class UserName(object):
 
 
 class User(object):
-    def __init__(self, userName, externalId=None, name=None, meta=None, emails=None, phoneNumbers=None, id=None,
+    def __init__(self, userName, externalId=None, name=None, meta=None, emails=list(), phoneNumbers=list(), id=None,
                  resources=None):
         self.id = id
         self.externalId = externalId

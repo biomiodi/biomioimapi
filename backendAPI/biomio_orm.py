@@ -68,6 +68,7 @@ class Profiles(database.Entity):
     last_login_time = pny.Required(datetime.datetime, default=lambda: datetime.datetime.now(), auto=True, lazy=True)
     user_name = pny.Optional('UserInfo', cascade_delete=True)
     provider_users = pny.Optional('ProviderUsers', cascade_delete=True)
+    resource_users = pny.Set('BiomioResourceUsers', cascade_delete=True)
     emails = pny.Set('Emails', cascade_delete=True)
     phones = pny.Set('Phones', cascade_delete=True)
 
@@ -123,7 +124,7 @@ class BiomioResources(database.Entity):
 class BiomioResourceUsers(database.Entity):
     _table_ = 'WebResourceUsers'
     id = pny.PrimaryKey(int, auto=True)
-    userId = pny.Required(int)
+    userId = pny.Required('Profiles')
     webResourceId = pny.Required('BiomioResources')
 
 
@@ -318,7 +319,7 @@ class EmailORM:
             else:
                 raise pny.ObjectNotFound(Emails)
         except pny.ObjectNotFound:
-            data = None
+            data = list()
         return data
 
 
@@ -349,7 +350,7 @@ class PhoneNumberORM:
             else:
                 raise pny.ObjectNotFound(Phones)
         except pny.ObjectNotFound:
-            data = None
+            data = list()
         return data
 
 
@@ -561,7 +562,6 @@ class UserORM:
                 )
                 if obj.externalId:
                     user.externalId = obj.externalId
-                # pny.commit()
 
                 user_meta = None
                 if obj.name:
@@ -576,12 +576,12 @@ class UserORM:
                         honorificSuffix=obj.name.honorificSuffix,
                         formatted=obj.name.formatted
                     )
-                    # pny.commit()
+
                 else:
                     user_meta = UserInfo(
                         profileId=user
                     )
-                    # pny.commit()
+
                 user_meta.profileId = user
 
                 if obj.emails:
@@ -592,7 +592,6 @@ class UserORM:
                             email=email.value,
                             primary=email.primary
                         )
-                        # pny.commit()
 
                 if obj.phoneNumbers:
                     for phone in obj.phoneNumbers:
@@ -601,7 +600,6 @@ class UserORM:
 
                             phone=phone.value,
                         )
-                        # pny.commit()
                 pny.commit()
                 data = self.get(user.id)
             else:
@@ -846,7 +844,7 @@ class BiomioResourceORM:
                         if user_list:
                             users = pny.select(wru for wru in BiomioResourceUsers
                                                if wru.webResourceId == web_resource
-                                               and wru.userId not in user_list)
+                                               and wru.userId.id not in user_list)
                             for user in users:
                                 user.delete()
 
@@ -1483,16 +1481,6 @@ class GroupsORM:
             group = Groups[obj.id]
 
             if group:
-                # group_web_resources = pny.select(gwr for gwr in GroupWebResources
-                #                                  if gwr.groupId == group.id)
-                # for group_web_resource in group_web_resources:
-                #     group_web_resource.delete()
-                #     pny.commit()
-                # group_users = pny.select(gu for gu in GroupUsers
-                #                          if gu.groupId == group.id)
-                # for group_user in group_users:
-                #     group_user.delete()
-                #     pny.commit()
                 group.delete()
 
                 pny.commit()

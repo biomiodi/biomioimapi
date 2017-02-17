@@ -96,7 +96,7 @@ class UserSerializer(serializers.Serializer):
     userName = serializers.CharField(max_length=150)
     meta = UserMetaSerializer(required=False, allow_null=True, read_only=True)
     name = UserNameSerializer(required=False, allow_null=True)
-    emails = EmailSerializer(required=False, many=True, allow_null=True)
+    emails = EmailSerializer(required=False, many=True)
     phoneNumbers = PhoneNumberSerializer(required=False, many=True, allow_null=True)
     resources = BiomioResourceForUserSerializer(required=False, read_only=True, many=True)
 
@@ -221,7 +221,7 @@ class BiomioResourceMetaSerializer(serializers.Serializer):
 class BiomioResourceUserSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     externalId = serializers.CharField(max_length=128, required=False, allow_blank=True, allow_null=True)
-    userName = serializers.CharField(max_length=150)
+    userName = serializers.CharField(max_length=150, required=False)
 
 
 class BiomioResourceSerializer(serializers.Serializer):
@@ -233,7 +233,7 @@ class BiomioResourceSerializer(serializers.Serializer):
     domain = serializers.CharField(max_length=255, required=True)
 
     meta = BiomioResourceMetaSerializer(required=False, allow_null=True, read_only=True)
-    users = BiomioResourceUserSerializer(many=True)
+    users = BiomioResourceUserSerializer(many=True, required=False)
 
     def get_schemas(self, obj):
         return [SCIM_ADDR % obj.__class__.__name__]
@@ -276,7 +276,9 @@ class BiomioResourceSerializer(serializers.Serializer):
 
     def validate_users(self, value):
         for user_value in value:
-            if not ProviderUsersORM.instance().get(self.initial_data.get('providerId'), user_value.get('id')):
+            providerId = self.initial_data.get('providerId') if not self.instance else self.instance.providerId
+
+            if not ProviderUsersORM.instance().get(providerId, user_value.get('id')):
                 raise serializers.ValidationError("Wrong User ID.")
         return value
 
@@ -318,8 +320,8 @@ class BiomioPoliciesMetaSerializer(serializers.Serializer):
 
 class BiomioResourcePoliciesSerializer(serializers.Serializer):
     id = serializers.IntegerField()
-    name = serializers.CharField(max_length=255, required=True)
-    domain = serializers.CharField(max_length=255, required=True)
+    name = serializers.CharField(max_length=255, required=False)
+    domain = serializers.CharField(max_length=255, required=False)
 
 
 class BiomioPoliciesSerializer(serializers.Serializer):
@@ -331,7 +333,7 @@ class BiomioPoliciesSerializer(serializers.Serializer):
     body = serializers.CharField(max_length=255, required=False)
 
     meta = BiomioPoliciesMetaSerializer(read_only=True)
-    resources = BiomioResourcePoliciesSerializer(many=True)
+    resources = BiomioResourcePoliciesSerializer(many=True, required=False)
 
     def get_schemas(self, obj):
         return [SCIM_ADDR % obj.__class__.__name__]
@@ -372,8 +374,11 @@ class BiomioPoliciesSerializer(serializers.Serializer):
     def validate_resources(self, value):
         for resource_value in value:
             resource = BiomioResourceORM.instance().get(resource_value.get('id'))
-            if not resource or int(resource.providerId) != int(self.initial_data.get('providerId')):
+            providerId = int(self.initial_data.get('providerId')) if not self.instance else self.instance.providerId
+
+            if not resource or int(resource.providerId) != providerId:
                 raise serializers.ValidationError("Wrong Resource ID.")
+
         return value
 
 
@@ -471,7 +476,7 @@ class BiomioEnrollmentSerializer(serializers.Serializer):
 class GroupUsersSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     type = serializers.CharField(max_length=255, required=False)
-    name = serializers.CharField(max_length=150)
+    name = serializers.CharField(max_length=150, required=False)
 
 
 class GroupBiomioResourcesSerializer(serializers.Serializer):
