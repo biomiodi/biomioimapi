@@ -1235,7 +1235,12 @@ class EnrollmentORM:
                     code = None
                     status = False
 
-                if redis_conn.get(REDIS_TRAINING_STATUS_KEY_PARAMS % device.device_token):
+                try:
+                    redis_conn.get(REDIS_TRAINING_STATUS_KEY_PARAMS % device.device_token)
+                except Exception:
+                    redis_conn = None
+
+                if redis_conn:
                     data = ast.literal_eval(redis_conn.get(REDIS_TRAINING_STATUS_KEY_PARAMS % device.device_token))
                     device_training = BiomioEnrollmentTraining(status=data.get('status'), progress=data.get('progress'))
                     device_biometrics = BiomioEnrollmentBiometrics(training=device_training, type='face')
@@ -1251,6 +1256,8 @@ class EnrollmentORM:
                 raise pny.ObjectNotFound(BiomioDevices)
         except pny.ObjectNotFound:
             data = None
+        # except Exception:
+        #     data = None
         return data
 
     @pny.db_session
