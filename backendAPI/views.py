@@ -1,4 +1,4 @@
-# import requests
+import requests
 from rest_framework.decorators import api_view
 
 from rest_framework.views import APIView
@@ -392,8 +392,8 @@ class ApiBiomioEnrollmentDetail(APIView):
         if not data.get('verification'):
             device = BiomioDevicesORM.instance().get(device_id)
             if device.device_token:
-                print AI_REST_URL % device.device_token
-                # requests.post(AI_REST_URL % device.device_token)
+                # print AI_REST_URL % device.device_token
+                requests.post(AI_REST_URL % device.device_token)
             else:
                 return Response({'errors': 'BiomioDevice not registered!'}, status=status.HTTP_404_NOT_FOUND)
 
