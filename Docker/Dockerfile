@@ -59,7 +59,7 @@ RUN ls -l /root/.ssh
 
 
 # Clone project from GIT
-ENV GITBRANCH master
+ENV GITBRANCH development
 ENV GITURL "git@bitbucket.org:biomio/biomioimapi.git"
 
 #ARG CACHE_DATE=2016-01-01
