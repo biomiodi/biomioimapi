@@ -66,11 +66,13 @@ class Profiles(database.Entity):
     externalId = pny.Optional(str, 128, nullable=True, lazy=True)
     creation_time = pny.Required(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
     last_login_time = pny.Required(datetime.datetime, default=lambda: datetime.datetime.now(), auto=True, lazy=True)
+
     user_name = pny.Optional('UserInfo', cascade_delete=True)
     provider_users = pny.Optional('ProviderUsers', cascade_delete=True)
     resource_users = pny.Set('BiomioResourceUsers', cascade_delete=True)
     emails = pny.Set('Emails', cascade_delete=True)
     phones = pny.Set('Phones', cascade_delete=True)
+    pgp_keys_data = pny.Set('PgpKeysData', cascade_delete=True)
 
 
 class UserInfo(database.Entity):
@@ -205,6 +207,12 @@ class GroupWebResources(database.Entity):
     id = pny.PrimaryKey(int, auto=True)
     groupId = pny.Required('Groups')
     webResourceId = pny.Required(int)
+
+
+class PgpKeysData(database.Entity):
+    _table_ = 'PgpKeysData'
+    email = pny.PrimaryKey(str, 255)
+    user = pny.Required('Profiles')
 
 
 # pny.sql_debug(True)
@@ -1215,8 +1223,14 @@ class EnrollmentORM:
         try:
             device = BiomioDevices.get(id=dev_id)
             if device:
-                verification_code = VerificationCodes.get(device_id=dev_id, application=1)
+                verification_code = VerificationCodes.select_by_sql('SELECT v.id, v.code, v.status '
+                                                                    'FROM VerificationCodes v '
+                                                                    'WHERE v.device_id = "%s" '
+                                                                    'AND v.application = %s '
+                                                                    'LIMIT 1' % (dev_id, 1))
                 if verification_code:
+                    verification_code = verification_code[0]
+
                     code = verification_code.code
                     status = verification_code.status
                 else:
@@ -1228,8 +1242,14 @@ class EnrollmentORM:
                 biometrics = list()
                 # device_training = BiomioEnrollmentTraining(status='in-progress', progress='80')
 
-                verification_code = VerificationCodes.get(device_id=dev_id, application=0)
+                verification_code = VerificationCodes.select_by_sql('SELECT v.id, v.code, v.status '
+                                                                    'FROM VerificationCodes v '
+                                                                    'WHERE v.device_id = "%s" '
+                                                                    'AND v.application = %s '
+                                                                    'LIMIT 1' % (dev_id, 0))
                 if verification_code:
+                    verification_code = verification_code[0]
+
                     code = verification_code.code
                     status = verification_code.status
                 else:

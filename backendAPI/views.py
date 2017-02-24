@@ -375,30 +375,34 @@ class ApiBiomioDevicesDetail(APIView):
 
 
 class ApiBiomioEnrollmentDetail(APIView):
+    @method_decorator(jwt_required)
+    @method_decorator(provider_biomio_device)
     @pny.db_session
-    def get(self, request, device_id, format=None):
-        enrollment = EnrollmentORM.instance().get(device_id)
+    def get(self, request, provider_id, pk, format=None):
+        enrollment = EnrollmentORM.instance().get(pk)
         if enrollment:
             serializer = BiomioEnrollmentSerializer(enrollment, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             return Response({'errors': 'Not Found!'}, status=status.HTTP_404_NOT_FOUND)
 
+    @method_decorator(jwt_required)
+    @method_decorator(provider_biomio_device)
     @pny.db_session
-    def post(self, request, device_id, format=None):
+    def post(self, request, provider_id, pk, format=None):
         data = request.data
         application = 1 if data.get('verification') else 0
 
         if not data.get('verification'):
-            device = BiomioDevicesORM.instance().get(device_id)
+            device = BiomioDevicesORM.instance().get(pk)
             if device.device_token:
-                enrollment = EnrollmentORM.instance().gen_verification_code(dev_id=device_id, application=application)
+                enrollment = EnrollmentORM.instance().gen_verification_code(dev_id=pk, application=application)
                 if enrollment:
                     requests.post(AI_REST_URL % (device.device_token, enrollment.biometrics[0].training.code))
             else:
                 return Response({'errors': 'BiomioDevice not registered!'}, status=status.HTTP_404_NOT_FOUND)
         else:
-            enrollment = EnrollmentORM.instance().gen_verification_code(dev_id=device_id, application=application)
+            enrollment = EnrollmentORM.instance().gen_verification_code(dev_id=pk, application=application)
 
         if enrollment:
             serializer = BiomioEnrollmentSerializer(enrollment, context={'request': request})
