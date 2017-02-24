@@ -152,6 +152,7 @@ class BiomioDevices(database.Entity):
     id = pny.PrimaryKey(int, auto=True)
     profileId = pny.Required(int)
     title = pny.Required(str, 255, lazy=True)
+    serviceId = pny.Required(int)
     device_token = pny.Optional(str, 255, lazy=True)
     status = pny.Optional(bool, sql_default=False)
     date_created = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
@@ -1112,7 +1113,7 @@ class BiomioDevicesORM:
     def save(self, obj):
         if isinstance(obj, BiomioDevice):
             if not obj.id:
-                device = BiomioDevices(title=obj.title, profileId=obj.user)
+                device = BiomioDevices(title=obj.title, profileId=obj.user, serviceId=1)
                 pny.commit()
 
                 data = self.get(device.id)
@@ -1220,7 +1221,7 @@ class EnrollmentORM:
                     status = verification_code.status
                 else:
                     code = None
-                    status= False
+                    status = False
 
                 enrollment_verification = BiomioEnrollmentVerification(code=code, status=self.STATUS_ARRAY.get(status))
 
