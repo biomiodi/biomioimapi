@@ -392,12 +392,14 @@ class ApiBiomioEnrollmentDetail(APIView):
         if not data.get('verification'):
             device = BiomioDevicesORM.instance().get(device_id)
             if device.device_token:
-                # print AI_REST_URL % device.device_token
-                requests.post(AI_REST_URL % device.device_token)
+                enrollment = EnrollmentORM.instance().gen_verification_code(dev_id=device_id, application=application)
+                if enrollment:
+                    requests.post(AI_REST_URL % (device.device_token, enrollment.biometrics[0].training.code))
             else:
                 return Response({'errors': 'BiomioDevice not registered!'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            enrollment = EnrollmentORM.instance().gen_verification_code(dev_id=device_id, application=application)
 
-        enrollment = EnrollmentORM.instance().gen_verification_code(dev_id=device_id, application=application)
         if enrollment:
             serializer = BiomioEnrollmentSerializer(enrollment, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)

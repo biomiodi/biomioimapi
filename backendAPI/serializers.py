@@ -461,6 +461,7 @@ class BiomioEnrollmentVerificationSerializer(serializers.Serializer):
 class BiomioEnrollmentTraningSerializer(serializers.Serializer):
     status = serializers.CharField(max_length=32, required=True)
     progress = serializers.CharField(max_length=32, required=True)
+    code = serializers.CharField(max_length=32, required=True)
 
 
 class BiomioEnrollmentBiometricsSerializer(serializers.Serializer):

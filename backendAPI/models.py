@@ -132,9 +132,10 @@ class BiomioEnrollmentVerification(object):
 
 
 class BiomioEnrollmentTraining(object):
-    def __init__(self, status=None, progress=None):
+    def __init__(self, status=None, progress=None, code=None):
         self.status = status
         self.progress = progress
+        self.code = code
 
 
 class BiomioEnrollmentBiometrics(object):

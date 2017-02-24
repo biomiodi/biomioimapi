@@ -1270,7 +1270,7 @@ class EnrollmentORM:
                                                                     'FROM VerificationCodes v '
                                                                     'WHERE v.device_id = "%s" '
                                                                     'AND v.application = %s '
-                                                                    'LIMIT 1' % (dev_id, application))
+                                                                    'LIMIT 1' % (dev_id, 1))
                 if verification_code:
                     verification_code = verification_code[0]
                     while True:
@@ -1281,7 +1281,7 @@ class EnrollmentORM:
                             continue
                         else:
                             verification_code.code = str(code)
-                            verification_code.status = 1
+                            verification_code.status = 0
                             verification_code.application = application
                             pny.commit()
                             break
@@ -1295,7 +1295,7 @@ class EnrollmentORM:
                         else:
                             verification_code = VerificationCodes(
                                 code=str(code),
-                                status=1,
+                                status=0,
                                 device_id=dev_id,
                                 application=application,
                                 profileId=device.profileId
@@ -1308,8 +1308,46 @@ class EnrollmentORM:
                     status=self.STATUS_ARRAY.get(verification_code.status)
                 )
 
+                verification_code = VerificationCodes.select_by_sql('SELECT v.id, v.code, v.status '
+                                                                    'FROM VerificationCodes v '
+                                                                    'WHERE v.device_id = "%s" '
+                                                                    'AND v.application = %s '
+                                                                    'LIMIT 1' % (dev_id, 0))
+                if verification_code:
+                    verification_code = verification_code[0]
+                    while True:
+                        code = random.randint(10000000, 99999999)
+                        if VerificationCodes.select_by_sql('SELECT v.id, v.code, v.status '
+                                                           'FROM VerificationCodes v '
+                                                           'WHERE v.code = "%s"' % code):
+                            continue
+                        else:
+                            verification_code.code = str(code)
+                            verification_code.status = 0
+                            verification_code.application = application
+                            pny.commit()
+                            break
+                else:
+                    while True:
+                        code = random.randint(10000000, 99999999)
+                        if VerificationCodes.select_by_sql('SELECT v.id, v.code, v.status '
+                                                           'FROM VerificationCodes v '
+                                                           'WHERE v.code = "%s"' % code):
+                            continue
+                        else:
+                            verification_code = VerificationCodes(
+                                code=str(code),
+                                status=0,
+                                device_id=dev_id,
+                                application=application,
+                                profileId=device.profileId
+                            )
+                            pny.commit()
+                            break
+
                 biometrics = list()
-                device_training = BiomioEnrollmentTraining(status=self.STATUS_ARRAY.get(verification_code.status), progress=None)
+                device_training = BiomioEnrollmentTraining(
+                    status=self.STATUS_ARRAY.get(verification_code.status), progress=None, code=code)
                 device_biometrics = BiomioEnrollmentBiometrics(training=device_training, type='face')
                 biometrics.append(device_biometrics)
 
