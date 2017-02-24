@@ -1282,7 +1282,7 @@ class EnrollmentORM:
                         else:
                             verification_code.code = str(code)
                             verification_code.status = 0
-                            verification_code.application = application
+                            verification_code.application = 1
                             pny.commit()
                             break
                 else:
@@ -1297,7 +1297,7 @@ class EnrollmentORM:
                                 code=str(code),
                                 status=0,
                                 device_id=dev_id,
-                                application=application,
+                                application=1,
                                 profileId=device.profileId
                             )
                             pny.commit()
@@ -1324,7 +1324,7 @@ class EnrollmentORM:
                         else:
                             verification_code.code = str(code)
                             verification_code.status = 0
-                            verification_code.application = application
+                            verification_code.application = 0
                             pny.commit()
                             break
                 else:
@@ -1339,7 +1339,7 @@ class EnrollmentORM:
                                 code=str(code),
                                 status=0,
                                 device_id=dev_id,
-                                application=application,
+                                application=0,
                                 profileId=device.profileId
                             )
                             pny.commit()
