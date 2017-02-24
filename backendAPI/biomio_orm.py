@@ -1273,35 +1273,37 @@ class EnrollmentORM:
                                                                     'LIMIT 1' % (dev_id, 1))
                 if verification_code:
                     verification_code = verification_code[0]
-                    while True:
-                        code = random.randint(10000000, 99999999)
-                        if VerificationCodes.select_by_sql('SELECT v.id, v.code, v.status '
-                                                           'FROM VerificationCodes v '
-                                                           'WHERE v.code = "%s"' % code):
-                            continue
-                        else:
-                            verification_code.code = str(code)
-                            verification_code.status = 0
-                            verification_code.application = 1
-                            pny.commit()
-                            break
+                    if application == 1:
+                        while True:
+                            code = random.randint(10000000, 99999999)
+                            if VerificationCodes.select_by_sql('SELECT v.id, v.code, v.status '
+                                                               'FROM VerificationCodes v '
+                                                               'WHERE v.code = "%s"' % code):
+                                continue
+                            else:
+                                verification_code.code = str(code)
+                                verification_code.status = 1
+                                verification_code.application = 1
+                                pny.commit()
+                                break
                 else:
-                    while True:
-                        code = random.randint(10000000, 99999999)
-                        if VerificationCodes.select_by_sql('SELECT v.id, v.code, v.status '
-                                                           'FROM VerificationCodes v '
-                                                           'WHERE v.code = "%s"' % code):
-                            continue
-                        else:
-                            verification_code = VerificationCodes(
-                                code=str(code),
-                                status=0,
-                                device_id=dev_id,
-                                application=1,
-                                profileId=device.profileId
-                            )
-                            pny.commit()
-                            break
+                    if application == 1:
+                        while True:
+                            code = random.randint(10000000, 99999999)
+                            if VerificationCodes.select_by_sql('SELECT v.id, v.code, v.status '
+                                                               'FROM VerificationCodes v '
+                                                               'WHERE v.code = "%s"' % code):
+                                continue
+                            else:
+                                verification_code = VerificationCodes(
+                                    code=str(code),
+                                    status=1,
+                                    device_id=dev_id,
+                                    application=1,
+                                    profileId=device.profileId
+                                )
+                                pny.commit()
+                                break
 
                 enrollment_verification = BiomioEnrollmentVerification(
                     code=verification_code.code,
@@ -1323,7 +1325,7 @@ class EnrollmentORM:
                             continue
                         else:
                             verification_code.code = str(code)
-                            verification_code.status = 0
+                            verification_code.status = 1
                             verification_code.application = 0
                             pny.commit()
                             break
@@ -1337,7 +1339,7 @@ class EnrollmentORM:
                         else:
                             verification_code = VerificationCodes(
                                 code=str(code),
-                                status=0,
+                                status=1,
                                 device_id=dev_id,
                                 application=0,
                                 profileId=device.profileId
