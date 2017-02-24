@@ -73,6 +73,7 @@ class Profiles(database.Entity):
     emails = pny.Set('Emails', cascade_delete=True)
     phones = pny.Set('Phones', cascade_delete=True)
     pgp_keys_data = pny.Set('PgpKeysData', cascade_delete=True)
+    application_userinformation = pny.Set('ApplicationsUser', cascade_delete=True)
 
 
 class UserInfo(database.Entity):
@@ -170,7 +171,7 @@ class Applications(database.Entity):
 class ApplicationsUser(database.Entity):
     _table_ = 'application_userinformation'
     application = pny.PrimaryKey(str, 255)
-    userinformation = pny.Required(int)
+    userinformation = pny.Required('Profiles')
 
 
 class VerificationCodes(database.Entity):
