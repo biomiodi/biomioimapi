@@ -1156,7 +1156,7 @@ class BiomioDevicesORM:
     def save(self, obj):
         if isinstance(obj, BiomioDevice):
             if not obj.id:
-                device = BiomioDevices(title=obj.title, profileId=obj.user.id, serviceId=1)
+                device = BiomioDevices(title=obj.title, profileId=obj.user, serviceId=1)
                 pny.commit()
 
                 data = self.get(device.id)
