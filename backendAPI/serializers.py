@@ -4,7 +4,7 @@ from rest_framework.reverse import reverse
 from models import UserMeta, UserName, User, Email, PhoneNumber, BiomioResourcesMeta, BiomioResource, \
     BiomioPolicies, BiomioPoliciesMeta, BiomioDeviceMeta, Application, Group
 from biomio_orm import UserORM, BiomioResourceORM, BiomioPoliciesORM, BiomioDevice, BiomioDevicesMetaORM, \
-    BiomioDevicesORM, ApplicationsORM, GroupsORM, ProviderUsersORM
+    BiomioDevicesORM, ApplicationsORM, GroupsORM, ProviderUsersORM, EmailORM, PhoneNumberORM
 from biomio_backend_SCIM.settings import SCIM_ADDR
 
 
@@ -189,6 +189,31 @@ class UserSerializer(serializers.Serializer):
             instance.phoneNumbers = False
 
         return UserORM.instance().save(instance)
+
+    def validate_emails(self, value):
+        providerId = self.initial_data.get('providerId') if not self.instance else UserORM.instance().get_provider_id(self.instance.id)
+        # print providerId, self.instance.id
+        id = False if not self.instance else self.instance.id
+        temp_value = str()
+        for email_value in value:
+            if temp_value == email_value.get('value'):
+                raise serializers.ValidationError("Dublicate emails %s!" % email_value.get('value'))
+            if EmailORM.instance().get_by_provider(providerId, email_value.get('value'), id):
+                raise serializers.ValidationError("Email %s already registered!" % email_value.get('value'))
+            temp_value = email_value.get('value')
+        return value
+
+    def validate_phoneNumbers(self, value):
+        providerId = self.initial_data.get('providerId') if not self.instance else UserORM.instance().get_provider_id(self.instance.id)
+        id = False if not self.instance else self.instance.id
+        temp_value = str()
+        for phone_value in value:
+            if temp_value == phone_value.get('value'):
+                raise serializers.ValidationError("Dublicate phone numbers %s!" % phone_value.get('value'))
+            if PhoneNumberORM.instance().get_by_provider(providerId, phone_value.get('value'), id):
+                raise serializers.ValidationError("Phone Number %s already registered!" % phone_value.get('value'))
+            temp_value = phone_value.get('value')
+        return value
 
 
 class BiomioResourceHyperlink(serializers.HyperlinkedRelatedField):

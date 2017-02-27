@@ -110,6 +110,9 @@ class ApiUsersList(APIView):
     @method_decorator(jwt_required)
     @pny.db_session
     def post(self, request, provider_id, format=None):
+        data = request.data
+        data['providerId'] = provider_id
+
         serializer = UserSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             user = serializer.save()

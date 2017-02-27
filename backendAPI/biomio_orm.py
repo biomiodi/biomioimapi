@@ -74,6 +74,7 @@ class Profiles(database.Entity):
     phones = pny.Set('Phones', cascade_delete=True)
     pgp_keys_data = pny.Set('PgpKeysData', cascade_delete=True)
     application_userinformation = pny.Set('ApplicationsUser', cascade_delete=True)
+    devices = pny.Set('BiomioDevices', cascade_delete=True)
 
 
 class UserInfo(database.Entity):
@@ -153,7 +154,7 @@ class WebResourcePolicies(database.Entity):
 class BiomioDevices(database.Entity):
     _table_ = 'UserServices'
     id = pny.PrimaryKey(int, auto=True)
-    profileId = pny.Required(int)
+    profileId = pny.Required('Profiles')
     title = pny.Required(str, 255, lazy=True)
     serviceId = pny.Required(int)
     device_token = pny.Optional(str, 255, lazy=True)
@@ -332,6 +333,17 @@ class EmailORM:
             data = list()
         return data
 
+    @pny.db_session
+    def get_by_provider(self, provider_id, email, id):
+        emails = Emails.select_by_sql(
+            """
+            select e.id, e.email, e.`primary` from Emails e
+            LEFT JOIN ProviderUsers pu on pu.user_id = e.profileId
+            WHERE pu.provider_id=%s AND e.email='%s' AND not(pu.user_id=%s);
+            """ % (provider_id, email, id)
+        )
+        return True if emails else False
+
 
 class PhoneNumberORM:
     _instance = None
@@ -362,6 +374,17 @@ class PhoneNumberORM:
         except pny.ObjectNotFound:
             data = list()
         return data
+
+    @pny.db_session
+    def get_by_provider(self, provider_id, phone, id):
+        emails = Phones.select_by_sql(
+            """
+            select p.id, p.phone from Phones p
+            LEFT JOIN ProviderUsers pu on pu.user_id = p.profileId
+            WHERE pu.provider_id=%s AND p.phone='%s' AND not(pu.user_id=%s);
+            """ % (provider_id, phone, id)
+        )
+        return True if emails else False
 
 
 class UserMetaORM:
@@ -473,6 +496,13 @@ class UserORM:
             data.update({'externalId': obj.externalId})
             data.update({'userName': obj.name})
         return data
+
+    @pny.db_session
+    def get_provider_id(self, profileId):
+        provider_ids = pny.select(
+            pu for pu in ProviderUsers if pu.user_id.id == profileId
+        )
+        return list(provider_ids)[0].provider_id if provider_ids else False
 
 
     @pny.db_session
