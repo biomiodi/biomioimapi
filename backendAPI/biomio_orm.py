@@ -555,11 +555,15 @@ class UserORM:
         return data_list
 
     @pny.db_session
-    def validate_username(self, username, id):
+    def validate_username(self, username, id, providerId):
         data = False
-        user = Profiles.get(name=username)
+        user = Profiles.select_by_sql('SELECT u.id, u.name, u.externalId '
+                                      'FROM Profiles u '
+                                      'LEFT JOIN ProviderUsers pu ON pu.user_id = u.id '
+                                      'WHERE u.name = "%s" and pu.provider_id = %s' % (username, providerId))
         if user:
-            data = user.id != id
+            data = list(user)[0].id != id
+
         return data
 
     @pny.db_session
@@ -1114,7 +1118,7 @@ class BiomioDevicesORM:
         data = dict()
         if isinstance(obj, BiomioDevices):
             data.update({'id': obj.id})
-            data.update({'user': obj.profileId})
+            data.update({'user': obj.profileId.id})
             data.update({'title': obj.title})
             data.update({'device_token': obj.device_token})
         return data
@@ -1138,7 +1142,7 @@ class BiomioDevicesORM:
 
     @pny.db_session
     def all(self, profileId=None):
-        devices = pny.select(e for e in BiomioDevices if e.profileId == profileId)
+        devices = pny.select(e for e in BiomioDevices if e.profileId.id == profileId)
 
         data_list = list()
         for device in devices:
@@ -1152,7 +1156,7 @@ class BiomioDevicesORM:
     def save(self, obj):
         if isinstance(obj, BiomioDevice):
             if not obj.id:
-                device = BiomioDevices(title=obj.title, profileId=obj.user, serviceId=1)
+                device = BiomioDevices(title=obj.title, profileId=obj.user.id, serviceId=1)
                 pny.commit()
 
                 data = self.get(device.id)

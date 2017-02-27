@@ -104,10 +104,12 @@ class UserSerializer(serializers.Serializer):
         return [SCIM_ADDR % obj.__class__.__name__]
 
     def validate_userName(self, value):
+        providerId = self.initial_data.get('providerId') if not self.instance else UserORM.instance().get_provider_id(
+            self.instance.id)
         if self.instance:
-            result = UserORM.instance().validate_username(value, self.instance.id)
+            result = UserORM.instance().validate_username(value, self.instance.id, providerId)
         else:
-            result = UserORM.instance().validate_username(value, None)
+            result = UserORM.instance().validate_username(value, None, providerId)
         if result:
             # print self.instance.id
             raise serializers.ValidationError("A user with that username already exists.")
