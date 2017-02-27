@@ -1355,7 +1355,7 @@ class EnrollmentORM:
                                     status=1,
                                     device_id=dev_id,
                                     application=1,
-                                    profileId=device.profileId
+                                    profileId=device.profileId.id
                                 )
                                 pny.commit()
                                 break
@@ -1397,7 +1397,7 @@ class EnrollmentORM:
                                 status=1,
                                 device_id=dev_id,
                                 application=0,
-                                profileId=device.profileId
+                                profileId=device.profileId.id
                             )
                             pny.commit()
                             break
