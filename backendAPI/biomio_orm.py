@@ -267,7 +267,7 @@ class ProviderJWTKeysORM:
                 private_key = RSA.importKey(providerJWT.private_key)
                 payload = {'provider': providerId}
 
-                token = jwt.generate_jwt(payload, private_key, 'RS256', datetime.timedelta(minutes=5))
+                token = jwt.generate_jwt(payload, private_key, 'RS256', datetime.timedelta(minutes=60))
                 data = token
             else:
                 raise pny.ObjectNotFound(Emails)
@@ -598,137 +598,86 @@ class UserORM:
             return False
 
     @pny.db_session
+    def _insert(self, obj):
+        user = Profiles(name=obj.userName, externalId=obj.externalId)
+
+        name_data = obj.name.to_dict() if obj.name else dict()
+        UserInfo(profileId=user, **name_data)
+
+        if obj.emails:
+            for email in obj.emails:
+                Emails(profileId=user, email=email.value, primary=email.primary)
+
+        if obj.phoneNumbers:
+            for phone in obj.phoneNumbers:
+                Phones(profileId=user, phone=phone.value,)
+
+        pny.commit()
+        return self.get(user.id)
+
+    @pny.db_session
+    def _update(self, obj):
+        try:
+            user = Profiles[obj.id]
+        except pny.ObjectNotFound:
+            return False
+
+        user.set(**obj.to_dict())
+
+        user_meta_data = obj.name.to_dict() if obj.name else dict()
+        user_meta_data.update({'dateModified': datetime.datetime.now()})
+
+        user_meta = UserMetaORM.instance().get(obj.id)
+
+        if user_meta:
+            user_meta = UserInfo.get(profileId=obj.id)
+            user_meta.set(**user_meta_data)
+        else:
+            UserInfo(profileId=user, **user_meta_data)
+
+        if obj.emails:
+            email_list = list()
+            for email in obj.emails:
+                email_data = Emails.get(email=email.value, profileId=user)
+                if email_data:
+                    email_data.primary = email.primary
+                else:
+                    Emails(email=email.value, profileId=user, primary=email.primary)
+
+                email_list.append(email.value)
+            if email_list:
+                emails = pny.select(e for e in Emails if e.profileId.id == obj.id and e.email not in email_list)
+                for email in emails:
+                    email.delete()
+        elif isinstance(obj.emails, list):
+            emails = pny.select(e for e in Emails if e.profileId.id == obj.id)
+            for email in emails:
+                email.delete()
+
+        if obj.phoneNumbers:
+            phone_list = list()
+            for phone in obj.phoneNumbers:
+                phone_data = Phones.get(phone=phone.value, profileId=user)
+                if not phone_data:
+                    Phones(phone=phone.value, profileId=user)
+                phone_list.append(phone.value)
+            if phone_list:
+                phones = pny.select(p for p in Phones if p.profileId.id == obj.id and p.phone not in phone_list)
+                for phone in phones:
+                    phone.delete()
+        elif isinstance(obj.phoneNumbers, list):
+            phones = pny.select(p for p in Phones if p.profileId.id == obj.id)
+            for phone in phones:
+                phone.delete()
+
+        pny.commit()
+        return self.get(user.id)
+
+    @pny.db_session
     def save(self, obj):
         if isinstance(obj, User):
-            if not obj.id:
-                user = Profiles(
-                    name=obj.userName
-                )
-                if obj.externalId:
-                    user.externalId = obj.externalId
-
-                user_meta = None
-                if obj.name:
-                    user_meta = UserInfo(
-                        profileId=user,
-
-                        firstName=obj.name.givenName,
-                        lastName=obj.name.familyName,
-                        middleName=obj.name.middleName,
-
-                        honorificPrefix=obj.name.honorificPrefix,
-                        honorificSuffix=obj.name.honorificSuffix,
-                        formatted=obj.name.formatted
-                    )
-
-                else:
-                    user_meta = UserInfo(
-                        profileId=user
-                    )
-
-                user_meta.profileId = user
-
-                if obj.emails:
-                    for email in obj.emails:
-                        email_data = Emails(
-                            profileId=user,
-
-                            email=email.value,
-                            primary=email.primary
-                        )
-
-                if obj.phoneNumbers:
-                    for phone in obj.phoneNumbers:
-                        phone_data = Phones(
-                            profileId=user,
-
-                            phone=phone.value,
-                        )
-                pny.commit()
-                data = self.get(user.id)
-            else:
-                try:
-                    user = Profiles[obj.id]
-                except pny.ObjectNotFound:
-                    return False
-                if user:
-
-                    user.name = obj.userName
-                    user.externalId = obj.externalId
-
-                    user_meta = UserMetaORM.instance().get(obj.id)
-                    if user_meta:
-                        user_meta = UserInfo.get(profileId=obj.id)
-                        if obj.name:
-                            user_meta.firstName = obj.name.givenName
-                            user_meta.lastName = obj.name.familyName
-                            user_meta.middleName = obj.name.middleName
-
-                            user_meta.honorificPrefix = obj.name.honorificPrefix
-                            user_meta.honorificSuffix = obj.name.honorificSuffix
-                            user_meta.formatted = obj.name.formatted
-                        if obj.meta:
-                            user_meta.dateCreated = obj.meta.created
-                            user_meta.dateModified = obj.meta.lastModified
-
-                    else:
-                        user_meta = UserInfo(
-                            profileId=user.id,
-
-                            firstName=obj.name.givenName,
-                            lastName=obj.name.familyName,
-                            middleName=obj.name.middleName,
-
-                            honorificPrefix=obj.name.honorificPrefix,
-                            honorificSuffix=obj.name.honorificSuffix,
-                            formatted=obj.name.formatted,
-
-                            dateCreated=obj.meta.created,
-                            dateModified=obj.meta.lastModified or datetime.datetime.now()
-                        )
-
-                    if obj.emails:
-                        email_list = list()
-                        for email in obj.emails:
-                            email_data = Emails.get(email=email.value, profileId=user)
-                            if email_data:
-                                email_data.primary = email.primary
-                            else:
-                                email_data = Emails(email=email.value, profileId=user, primary=email.primary)
-
-                            email_list.append(email.value)
-                        if email_list:
-                            emails = pny.select(e for e in Emails if e.profileId.id == obj.id and e.email not in email_list)
-                            for email in emails:
-                                email.delete()
-                    elif isinstance(obj.emails, list):
-                        emails = pny.select(e for e in Emails if e.profileId.id == obj.id)
-                        for email in emails:
-                            email.delete()
-
-                    if obj.phoneNumbers:
-                        phone_list = list()
-                        for phone in obj.phoneNumbers:
-                            phone_data = Phones.get(phone=phone.value, profileId=user)
-                            if not phone_data:
-                                phone_data = Phones(phone=phone.value, profileId=user)
-                            phone_list.append(phone.value)
-                        if phone_list:
-                            phones = pny.select(p for p in Phones if p.profileId.id == obj.id and p.phone not in phone_list)
-                            for phone in phones:
-                                phone.delete()
-                    elif isinstance(obj.phoneNumbers, list):
-                        phones = pny.select(p for p in Phones if p.profileId.id == obj.id)
-                        for phone in phones:
-                            phone.delete()
-
-                    pny.commit()
-                    data = self.get(user.id)
-                else:
-                    data = False
-        else:
-            data = False
-        return data
+            return self._update(obj) if obj.id else self._insert(obj)
+        return False
 
 
 class BiomioResourceMetaORM:
@@ -854,58 +803,58 @@ class BiomioResourceORM:
         return data_list
 
     @pny.db_session
+    def _insert(self, obj):
+        web_resource = BiomioResources(title=obj.name, domain=obj.domain, providerId=obj.providerId)
+
+        if obj.users:
+            for user in obj.users:
+                BiomioResourceUsers(userId=user.id, webResourceId=web_resource)
+        pny.commit()
+
+        return self.get(web_resource.id)
+
+    @pny.db_session
+    def _update(self, obj):
+        try:
+            web_resource = BiomioResources[obj.id]
+        except pny.ObjectNotFound:
+            return False
+
+        data = obj.to_dict()
+        data.update({'date_modified':datetime.datetime.now()})
+
+        web_resource.set(**obj.to_dict())
+
+        if obj.users:
+            user_list = list()
+            for user in obj.users:
+                web_resource_user_data = BiomioResourceUsers.get(userId=user.id, webResourceId=web_resource)
+                if not web_resource_user_data:
+                    BiomioResourceUsers(userId=user.id, webResourceId=web_resource)
+
+                user_list.append(user.id)
+            if user_list:
+                users = pny.select(wru for wru in BiomioResourceUsers
+                                   if wru.webResourceId == web_resource
+                                   and wru.userId.id not in user_list)
+                for user in users:
+                    user.delete()
+
+        elif isinstance(obj.users, list):
+            users = pny.select(wru for wru in BiomioResourceUsers
+                               if wru.webResourceId == web_resource)
+            for user in users:
+                user.delete()
+
+        pny.commit()
+
+        return self.get(obj.id)
+
+    @pny.db_session
     def save(self, obj):
         if isinstance(obj, BiomioResource):
-            if not obj.id:
-                web_resource = BiomioResources(title=obj.name, domain=obj.domain, providerId=obj.providerId)
-
-                if obj.users:
-                    for user in obj.users:
-                        biomio_resource_users = BiomioResourceUsers(userId=user.id, webResourceId=web_resource)
-                pny.commit()
-
-                data = self.get(web_resource.id)
-            else:
-                try:
-                    web_resource = BiomioResources[obj.id]
-                except pny.ObjectNotFound:
-                    return False
-
-                if web_resource:
-                    web_resource.title = obj.name
-                    web_resource.domain = obj.domain
-
-                    web_resource.date_modified = datetime.datetime.now()
-
-                    if obj.users:
-                        user_list = list()
-                        for user in obj.users:
-                            web_resource_user_data = BiomioResourceUsers.get(userId=user.id, webResourceId=web_resource)
-                            if not web_resource_user_data:
-                                BiomioResourceUsers(userId=user.id, webResourceId=web_resource)
-
-                            user_list.append(user.id)
-                        if user_list:
-                            users = pny.select(wru for wru in BiomioResourceUsers
-                                               if wru.webResourceId == web_resource
-                                               and wru.userId.id not in user_list)
-                            for user in users:
-                                user.delete()
-
-                    elif isinstance(obj.users, list):
-                        users = pny.select(wru for wru in BiomioResourceUsers
-                                           if wru.webResourceId == web_resource)
-                        for user in users:
-                            user.delete()
-
-                    pny.commit()
-
-                    data = self.get(obj.id)
-                else:
-                    data = False
-        else:
-            data = False
-        return data
+            return self._update(obj) if obj.id else self._insert(obj)
+        return False
 
     @pny.db_session
     def delete(self, obj):

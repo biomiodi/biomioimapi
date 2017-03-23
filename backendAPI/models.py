@@ -22,6 +22,16 @@ class UserName(object):
         self.formatted = formatted
         self.user = user
 
+    def to_dict(self):
+        return {
+            'lastName': self.familyName,
+            'firstName': self.givenName,
+            'middleName': self.middleName,
+            'honorificPrefix': self.honorificPrefix,
+            'honorificSuffix': self.honorificSuffix,
+            'formatted': self.formatted
+        }
+
 
 class User(object):
     def __init__(self, userName, externalId=None, name=None, meta=None, emails=list(), phoneNumbers=list(), id=None,
@@ -34,6 +44,12 @@ class User(object):
         self.emails = emails
         self.phoneNumbers = phoneNumbers
         self.resources = resources
+
+    def to_dict(self):
+        return {
+            'externalId': self.externalId,
+            'name': self.userName
+        }
 
 
 class Email(object):
@@ -68,6 +84,12 @@ class BiomioResource(object):
         self.domain = domain
         self.meta = meta
         self.users = users
+
+    def to_dict(self):
+        return {
+            'title': self.name,
+            'domain': self.domain
+        }
 
 
 class BiomioPolicies(object):
