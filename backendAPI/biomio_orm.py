@@ -955,59 +955,56 @@ class BiomioPoliciesORM:
         return data_list
 
     @pny.db_session
+    def _insert(self, obj):
+        policies = Policies(name=obj.title, owner=obj.providerId)
+        if obj.body:
+            policies.body = obj.body
+
+        if obj.resources:
+            for resource in obj.resources:
+                WebResourcePolicies(policiesId=policies, webResourceId=resource.id)
+        pny.commit()
+
+        return self.get(policies.id)
+
+    @pny.db_session
+    def _update(self, obj):
+        try:
+            policies = Policies[obj.id]
+
+            data = obj.to_dict()
+            data.update({'dateModified': datetime.datetime.now()})
+
+            policies.set(**obj.to_dict())
+
+            if obj.resources:
+                resource_list = list()
+                for resource in obj.resources:
+                    web_resource_policies_data = WebResourcePolicies.get(policiesId=policies, webResourceId=resource.id)
+                    if not web_resource_policies_data:
+                        WebResourcePolicies(policiesId=obj.id, webResourceId=resource.id)
+
+                    resource_list.append(resource.id)
+
+                resources = pny.select(wrp for wrp in WebResourcePolicies
+                                       if wrp.policiesId == policies
+                                       and wrp.webResourceId.id not in resource_list)
+                resources.delete()
+            elif isinstance(obj.resources, list):
+                resources = pny.select(wrp for wrp in WebResourcePolicies
+                                       if wrp.policiesId == policies)
+                for resource in resources:
+                    resource.delete()
+            pny.commit()
+        except pny.ObjectNotFound:
+            return False
+        return self.get(obj.id)
+
+    @pny.db_session
     def save(self, obj):
         if isinstance(obj, BiomioPolicies):
-            if not obj.id:
-                policies = Policies(name=obj.title, owner=obj.providerId)
-                if obj.body:
-                    policies.body = obj.body
-
-                if obj.resources:
-                    for resource in obj.resources:
-                        WebResourcePolicies(policiesId=policies, webResourceId=resource.id)
-                pny.commit()
-
-                data = self.get(policies.id)
-            else:
-                try:
-                    policies = Policies[obj.id]
-                except pny.ObjectNotFound:
-                    return False
-
-                if policies:
-                    policies.name = obj.title
-                    policies.body = obj.body
-
-                    policies.dateModified = datetime.datetime.now()
-
-                    if obj.resources:
-                        resource_list = list()
-                        for resource in obj.resources:
-                            web_resource_policies_data = WebResourcePolicies.get(policiesId=policies, webResourceId=resource.id)
-                            if not web_resource_policies_data:
-                                WebResourcePolicies(policiesId=obj.id, webResourceId=resource.id)
-
-                            resource_list.append(resource.id)
-                        if resource_list:
-                            resources = pny.select(wrp for wrp in WebResourcePolicies
-                                                   if wrp.policiesId == policies
-                                                   and wrp.webResourceId.id not in resource_list)
-                            for resource in resources:
-                                resource.delete()
-
-                    elif isinstance(obj.resources, list):
-                        resources = pny.select(wrp for wrp in WebResourcePolicies
-                                               if wrp.policiesId == policies)
-                        for resource in resources:
-                            resource.delete()
-                    pny.commit()
-
-                    data = self.get(obj.id)
-                else:
-                    data = False
-        else:
-            data = False
-        return data
+            return self._update(obj) if obj.id else self._insert(obj)
+        return False
 
     @pny.db_session
     def delete(self, obj):
@@ -1102,31 +1099,30 @@ class BiomioDevicesORM:
         return data_list
 
     @pny.db_session
+    def _insert(self, obj):
+        device = BiomioDevices(title=obj.title, profileId=obj.user, serviceId=1)
+        pny.commit()
+
+        return self.get(device.id)
+
+    @pny.db_session
+    def _update(self, obj):
+        try:
+            device = BiomioDevices[obj.id]
+
+            device.title = obj.title
+            device.date_modified = datetime.datetime.now()
+
+            pny.commit()
+        except pny.ObjectNotFound:
+            return False
+        return self.get(obj.id)
+
+    @pny.db_session
     def save(self, obj):
         if isinstance(obj, BiomioDevice):
-            if not obj.id:
-                device = BiomioDevices(title=obj.title, profileId=obj.user, serviceId=1)
-                pny.commit()
-
-                data = self.get(device.id)
-            else:
-                try:
-                    device = BiomioDevices[obj.id]
-                except pny.ObjectNotFound:
-                    return False
-
-                if device:
-                    device.title = obj.title
-                    device.date_modified = datetime.datetime.now()
-
-                    pny.commit()
-
-                    data = self.get(obj.id)
-                else:
-                    data = False
-        else:
-            data = False
-        return data
+            return self._update(obj) if obj.id else self._insert(obj)
+        return False
 
     @pny.db_session
     def delete(self, obj):
@@ -1224,8 +1220,6 @@ class EnrollmentORM:
                 enrollment_verification = BiomioEnrollmentVerification(code=code, status=self.STATUS_ARRAY.get(status))
 
                 biometrics = list()
-                # device_training = BiomioEnrollmentTraining(status='in-progress', progress='80')
-
                 verification_code = VerificationCodes.select_by_sql('SELECT v.id, v.code, v.status '
                                                                     'FROM VerificationCodes v '
                                                                     'WHERE v.device_id = "%s" '
@@ -1261,8 +1255,8 @@ class EnrollmentORM:
                 raise pny.ObjectNotFound(BiomioDevices)
         except pny.ObjectNotFound:
             data = None
-        # except Exception:
-        #     data = None
+        except Exception:
+            data = None
         return data
 
     @pny.db_session
@@ -1450,82 +1444,74 @@ class GroupsORM:
         return data_list
 
     @pny.db_session
+    def _insert(self, obj):
+        group = Groups(title=obj.title, providerId=obj.providerId)
+        if obj.body:
+            group.body = obj.body
+
+        if obj.users:
+            for user in obj.users:
+                GroupUsers(userId=user.id, groupId=group)
+
+        if obj.resources:
+            for resource in obj.resources:
+                GroupWebResources(webResourceId=resource.id, groupId=group)
+
+        pny.commit()
+        return self.get(group.id)
+
+    @pny.db_session
+    def _update(self, obj):
+        try:
+            group = Groups[obj.id]
+
+            group.set(**obj.to_dict())
+            group.lastModified = datetime.datetime.now()
+
+            if obj.resources:
+                resources_list = list()
+                for resource in obj.resources:
+                    group_resources = GroupWebResources.get(groupId=group, webResourceId=resource.id)
+                    if not group_resources:
+                        GroupWebResources(groupId=group, webResourceId=resource.id)
+
+                    resources_list.append(resource.id)
+
+                resources = pny.select(gwr for gwr in GroupWebResources if gwr.groupId == group
+                                       and gwr.webResourceId not in resources_list)
+                resources.delete()
+
+            elif isinstance(obj.resources, list):
+                resources = pny.select(gwr for gwr in GroupWebResources if gwr.groupId == group)
+                resources.delete()
+
+            if obj.users:
+                users_list = list()
+                for user in obj.users:
+                    group_user = GroupUsers.get(groupId=group, userId=user.id)
+                    if not group_user:
+                        GroupUsers(groupId=group, userId=user.id)
+
+                    users_list.append(user.id)
+
+                users = pny.select(gu for gu in GroupUsers if gu.groupId == group
+                                   and gu.userId not in users_list)
+                users.delete()
+            elif isinstance(obj.users, list):
+                users = pny.select(gu for gu in GroupUsers if gu.groupId == group)
+                users.delete()
+
+            pny.commit()
+
+            return self.get(obj.id)
+        except pny.ObjectNotFound:
+            return None
+
+    @pny.db_session
     def save(self, obj):
         if isinstance(obj, Group):
-            if not obj.id:
-                group = Groups(title=obj.title, providerId=obj.providerId)
-                if obj.body:
-                    group.body = obj.body
-
-                if obj.users:
-                    for user in obj.users:
-                        GroupUsers(userId=user.id, groupId=group)
-
-                if obj.resources:
-                    for resource in obj.resources:
-                        GroupWebResources(webResourceId=resource.id, groupId=group)
-
-                pny.commit()
-                data = self.get(group.id)
-            else:
-                try:
-                    group = Groups[obj.id]
-                except pny.ObjectNotFound:
-                    return None
-
-                if group:
-                    group.title = obj.title
-                    group.providerId = obj.providerId
-                    if obj.body:
-                        group.body = obj.body
-                    group.lastModified = datetime.datetime.now()
-                    # Update group users and group resources
-
-                    if obj.resources:
-                        resources_list = list()
-                        for resource in obj.resources:
-                            group_resources = GroupWebResources.get(groupId=group, webResourceId=resource.id)
-                            if not group_resources:
-                                GroupWebResources(groupId=group, webResourceId=resource.id)
-
-                            resources_list.append(resource.id)
-                        if resources_list:
-                            resources = pny.select(gwr for gwr in GroupWebResources if gwr.groupId == group
-                                                   and gwr.webResourceId not in resources_list)
-                            for resource in resources:
-                                resource.delete()
-
-                    elif isinstance(obj.resources, list):
-                        resources = pny.select(gwr for gwr in GroupWebResources if gwr.groupId == group)
-                        for resource in resources:
-                            resource.delete()
-
-                    if obj.users:
-                        users_list = list()
-                        for user in obj.users:
-                            group_user = GroupUsers.get(groupId=group, userId=user.id)
-                            if not group_user:
-                                GroupUsers(groupId=group, userId=user.id)
-
-                            users_list.append(user.id)
-                        if users_list:
-                            users = pny.select(gu for gu in GroupUsers if gu.groupId == group
-                                               and gu.userId not in users_list)
-                            for user in users:
-                                user.delete()
-                    elif isinstance(obj.users, list):
-                        users = pny.select(gu for gu in GroupUsers if gu.groupId == group)
-                        for user in users:
-                            user.delete()
-
-                    pny.commit()
-
-                    data = self.get(obj.id)
-                else:
-                    data = None
-        else:
-            data = None
-        return data
+            return self._update(obj) if obj.id else self._insert(obj)
+        return False
 
     @pny.db_session
     def delete(self, obj):

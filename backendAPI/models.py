@@ -101,6 +101,12 @@ class BiomioPolicies(object):
         self.meta = meta
         self.resources = resources
 
+    def to_dict(self):
+        return {
+            'name': self.title,
+            'body': self.body
+        }
+
 
 class BiomioPoliciesMeta(object):
     def __init__(self, id=None, pk=None, created=None, lastModified=None, location=None):
@@ -181,6 +187,13 @@ class Group(object):
         self.meta = meta
         self.users = users
         self.resources = resources
+
+    def to_dict(self):
+        return {
+            'title': self.title,
+            'body': self.body,
+            'providerId': self.providerId
+        }
 
 
 class GroupMeta(object):
