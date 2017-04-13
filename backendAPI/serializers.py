@@ -258,6 +258,8 @@ class BiomioResourceSerializer(serializers.Serializer):
     providerId = serializers.IntegerField(required=True)
     name = serializers.CharField(max_length=255, required=True)
     domain = serializers.CharField(max_length=255, required=True)
+    hook = serializers.CharField(max_length=255, required=False)
+    secret = serializers.CharField(max_length=128, required=False)
 
     meta = BiomioResourceMetaSerializer(required=False, allow_null=True, read_only=True)
     users = BiomioResourceUserSerializer(many=True, required=False)

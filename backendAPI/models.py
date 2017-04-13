@@ -77,11 +77,13 @@ class BiomioResourcesMeta(object):
 
 
 class BiomioResource(object):
-    def __init__(self, name=None, domain=None, providerId=None, id=None, meta=None, users=None):
+    def __init__(self, name=None, domain=None, providerId=None, id=None, meta=None, users=None, secret=None, hook=None):
         self.id = id
         self.providerId = providerId
         self.name = name
         self.domain = domain
+        self.hook = hook
+        self.secret = secret
         self.meta = meta
         self.users = users
 

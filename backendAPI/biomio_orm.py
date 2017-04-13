@@ -1,3 +1,6 @@
+import os
+import binascii
+
 import pony.orm as pny
 import datetime
 import ast
@@ -119,6 +122,8 @@ class BiomioResources(database.Entity):
     providerId = pny.Required(int)
     title = pny.Required(str, 255, lazy=True)
     domain = pny.Required(str, 255, lazy=True)
+    hook = pny.Optional(str, 255, nullable=True, lazy=True)
+    secret = pny.Optional(str, 128, nullable=True, lazy=True)
     date_created = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
     date_modified = pny.Optional(datetime.datetime, default=lambda: datetime.datetime.now(), lazy=True)
     resource_users = pny.Set('BiomioResourceUsers', cascade_delete=True)
@@ -274,7 +279,6 @@ class ProviderJWTKeysORM:
         except pny.ObjectNotFound:
             data = None
         return data
-
 
     @pny.db_session
     def set(self, providerId):
@@ -728,7 +732,13 @@ class BiomioResourceORM:
             data.update({'providerId': obj.providerId})
             data.update({'name': obj.title})
             data.update({'domain': obj.domain})
+            data.update({'secret': obj.secret})
+            data.update({'hook': obj.hook})
         return data
+
+    @staticmethod
+    def generate_secret(length=64):
+        return binascii.hexlify(os.urandom(length))
 
     @pny.db_session
     def get(self, id):
@@ -804,7 +814,8 @@ class BiomioResourceORM:
 
     @pny.db_session
     def _insert(self, obj):
-        web_resource = BiomioResources(title=obj.name, domain=obj.domain, providerId=obj.providerId)
+        web_resource = BiomioResources(title=obj.name, domain=obj.domain, providerId=obj.providerId,
+                                       secret=self.generate_secret(), hook=obj.hook)
 
         if obj.users:
             for user in obj.users:
@@ -821,9 +832,11 @@ class BiomioResourceORM:
             return False
 
         data = obj.to_dict()
-        data.update({'date_modified':datetime.datetime.now()})
+        data.update({'date_modified': datetime.datetime.now()})
 
-        web_resource.set(**obj.to_dict())
+        data.update({'secret': self.generate_secret() if obj.secret == 'reset' else obj.secret})
+
+        web_resource.set(**data)
 
         if obj.users:
             user_list = list()
