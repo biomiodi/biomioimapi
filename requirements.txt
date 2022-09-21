@@ -8,5 +8,5 @@ pony==0.7
 redis==2.10.5
 requests==2.13.0
 wsgiref==0.1.2
-python-jwt==2.0.1
+python-jwt==3.3.4
 pycrypto==2.6.1
